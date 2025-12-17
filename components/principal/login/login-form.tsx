@@ -16,6 +16,7 @@ import Swal from "sweetalert2";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { login } from "@/lib/auth/auth-service";
+import { IconEye, IconEyeOff } from "@tabler/icons-react";
 
 export function LoginForm({
   className,
@@ -24,6 +25,7 @@ export function LoginForm({
 
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+   const [showPassword, setShowPassword] = useState(false);
 
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -97,12 +99,28 @@ export function LoginForm({
               {/* Password */}
               <Field>
                 <FieldLabel htmlFor="password">Password</FieldLabel>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    className="pr-10"
+                  />
+
+                  {/* Ícono de Mostrar/Ocultar */}
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition"
+                  >
+                    {showPassword ? (
+                      <IconEye size={20} stroke={1.5} />
+                    ) : (
+                      <IconEyeOff size={20} stroke={1.5} />
+                    )}
+                  </button>
+                </div>
               </Field>
 
               <Field>

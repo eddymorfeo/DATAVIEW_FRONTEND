@@ -12,8 +12,6 @@ export function AddFocos() {
               + Añadir Nuevo Foco
             </Button>
           </DialogTrigger>
-
-          {/* Aquí sí va el contenido del diálogo */}
           <AddFocosForm />
         </Dialog>
       </div>
