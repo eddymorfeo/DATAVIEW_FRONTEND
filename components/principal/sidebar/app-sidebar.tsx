@@ -18,6 +18,7 @@ import { NavUser } from "./nav-user"
 import { NavDocuments } from "./nav-documents"
 import { sidebarMenu } from "./config/menu-sidebar"
 import { users } from "./config/users"
+import Link from "next/link"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
@@ -29,10 +30,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <a href="/home">
+              <Link href="/home">
                 <IconInnerShadowTop className="!size-5" />
                 <span className="text-base font-semibold">ANALÍTICA SACFI</span>
-              </a>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
