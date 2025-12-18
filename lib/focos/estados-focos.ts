@@ -1,5 +1,5 @@
 
-export const estados_focos = [
+export const estadosFocos = [
     "Vigente", 
     "Plan atrasado", 
     "Plazo vencido", 

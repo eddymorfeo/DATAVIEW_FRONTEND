@@ -14,7 +14,7 @@ import {
 import { analistas } from "@/lib/focos/analistas";
 import { comunas } from "@/lib/focos/comunas";
 import { fiscales } from "@/lib/focos/fiscales";
-import { estados_focos } from "@/lib/focos/estados-focos";
+import { estadosFocos } from "@/lib/focos/estados-focos";
 import { FocosFilters } from "@/lib/focos/types";
 
 type Props = {
@@ -78,7 +78,7 @@ export function Filters({ filters, onChange, onClear }: Props) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos</SelectItem>
-              {estados_focos.map((estado) => (
+              {estadosFocos.map((estado) => (
                 <SelectItem key={estado} value={estado}>
                   {estado}
                 </SelectItem>

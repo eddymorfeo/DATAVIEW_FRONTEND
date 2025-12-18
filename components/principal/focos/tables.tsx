@@ -1,17 +1,18 @@
 "use client";
 
 import { Foco, FocosFilters, FocoSubprocesoKey } from "@/lib/focos/types";
-import { useEffect, useMemo, useState } from "react";
-import { Pencil, Trash2, CheckCircle } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-} from "@/components/ui/dialog";
-import { AddFocosForm } from "@/components/principal/focos/add-focos-form";
+import { useMemo, useState } from "react";
+import { Pencil, Trash2, CheckCircle, Save, X } from "lucide-react";
 import Swal from "sweetalert2";
+import { comunas } from "@/lib/focos/comunas";
+import { estadosFocos } from "@/lib/focos/estados-focos";
+import { analistas } from "@/lib/focos/analistas";
+import { fiscales } from "@/lib/focos/fiscales";
 
 type Props = {
   filters: FocosFilters;
+  focos: Foco[];
+  setFocos: React.Dispatch<React.SetStateAction<Foco[]>>;
 };
 
 const SUBPROCESOS: FocoSubprocesoKey[] = [
@@ -23,17 +24,9 @@ const SUBPROCESOS: FocoSubprocesoKey[] = [
   "procedimientos",
 ];
 
-export function Tables({ filters }: Props) {
-  const [focos, setFocos] = useState<Foco[]>([]);
-  const [editingFoco, setEditingFoco] = useState<Foco | null>(null);
-
-  /* ================================
-     LOAD
-  ================================= */
-  useEffect(() => {
-    const data: Foco[] = JSON.parse(localStorage.getItem("focos") || "[]");
-    setFocos(data);
-  }, []);
+export function Tables({ filters, focos, setFocos }: Props) {
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editDraft, setEditDraft] = useState<Foco | null>(null);
 
   /* ================================
      FILTROS
@@ -87,7 +80,7 @@ export function Tables({ filters }: Props) {
   }
 
   /* ================================
-     DELETE (SweetAlert)
+     DELETE
   ================================= */
   function handleDelete(index: number) {
     Swal.fire({
@@ -133,6 +126,33 @@ export function Tables({ filters }: Props) {
   }
 
   /* ================================
+     EDIT INLINE
+  ================================= */
+  function startEdit(index: number, foco: Foco) {
+    setEditingIndex(index);
+    setEditDraft({ ...foco });
+  }
+
+  function cancelEdit() {
+    setEditingIndex(null);
+    setEditDraft(null);
+  }
+
+  function saveEdit() {
+    if (editingIndex === null || !editDraft) return;
+
+    setFocos((prev) => {
+      const updated = [...prev];
+      updated[editingIndex] = editDraft;
+      localStorage.setItem("focos", JSON.stringify(updated));
+      return updated;
+    });
+
+    setEditingIndex(null);
+    setEditDraft(null);
+  }
+
+  /* ================================
      RESUMEN
   ================================= */
   const total = focosFiltrados.length;
@@ -164,10 +184,7 @@ export function Tables({ filters }: Props) {
                 "Progreso",
                 "Acciones",
               ].map((h) => (
-                <th
-                  key={h}
-                  className="px-4 py-3 text-left font-semibold text-muted-foreground"
-                >
+                <th key={h} className="px-4 py-3 text-left font-semibold">
                   {h}
                 </th>
               ))}
@@ -175,105 +192,212 @@ export function Tables({ filters }: Props) {
           </thead>
 
           <tbody>
-            {focosFiltrados.map((foco) => {
-              const index = focos.indexOf(foco);
+            {focosFiltrados.map((foco, index) => {
               const progreso = calcularProgreso(foco);
-              const radius = 16;
-              const circumference = 2 * Math.PI * radius;
-              const offset =
-                circumference - (progreso / 100) * circumference;
+              const isEditing = editingIndex === index;
 
               return (
-                <tr key={`${foco.numeroFoco}-${foco.anioFoco}`} className="border-b">
+                <tr
+                  key={`${foco.numeroFoco}-${foco.anioFoco}`}
+                  className="border-b"
+                >
+                  {/* FOCO */}
                   <td className="px-4 py-3">
-                    <div className="font-medium">
-                      [{foco.numeroFoco}-{foco.anioFoco}] {foco.texto}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Ingresado: {foco.fecha}
-                    </div>
+                    {isEditing ? (
+                      <div className="space-y-1">
+                        <input
+                          className="border rounded px-2 py-1 w-full"
+                          value={editDraft?.numeroFoco || ""}
+                          onChange={(e) =>
+                            setEditDraft({
+                              ...editDraft!,
+                              numeroFoco: e.target.value,
+                            })
+                          }
+                        />
+                        <textarea
+                          rows={2}
+                          className="border rounded px-2 py-1 w-full"
+                          value={editDraft?.texto || ""}
+                          onChange={(e) =>
+                            setEditDraft({
+                              ...editDraft!,
+                              texto: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <div className="font-medium">
+                          [{foco.numeroFoco}-{foco.anioFoco}] {foco.texto}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Ingresado: {foco.fecha}
+                        </div>
+                      </>
+                    )}
                   </td>
 
-                  <td className="px-4 py-3">{foco.comuna}</td>
-                  <td className="px-4 py-3 lowercase">{foco.estadoFoco}</td>
-                  <td className="px-4 py-3">{foco.analista}</td>
-                  <td className="px-4 py-3">{foco.asignadoA}</td>
+                  {/* COMUNA */}
+                  <td className="px-4 py-3">
+                    {isEditing ? (
+                      <select
+                        className="border rounded px-2 py-1 w-full"
+                        value={editDraft?.comuna}
+                        onChange={(e) =>
+                          setEditDraft({
+                            ...editDraft!,
+                            comuna: e.target.value,
+                          })
+                        }
+                      >
+                        {comunas.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      foco.comuna
+                    )}
+                  </td>
 
+                  {/* ESTADO */}
+                  <td className="px-4 py-3 lowercase">
+                    {isEditing ? (
+                      <select
+                        className="border rounded px-2 py-1 w-full"
+                        value={editDraft?.estadoFoco}
+                        onChange={(e) =>
+                          setEditDraft({
+                            ...editDraft!,
+                            estadoFoco: e.target.value,
+                          })
+                        }
+                      >
+                        {estadosFocos.map((estado) => (
+                          <option key={estado} value={estado}>
+                            {estado}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      foco.estadoFoco
+                    )}
+                  </td>
+
+                  {/* ANALISTA */}
+                  <td className="px-4 py-3">
+                    {isEditing ? (
+                      <select
+                        className="border rounded px-2 py-1 w-full"
+                        value={editDraft?.analista}
+                        onChange={(e) =>
+                          setEditDraft({
+                            ...editDraft!,
+                            analista: e.target.value,
+                          })
+                        }
+                      >
+                        {analistas.map((a) => (
+                          <option key={a} value={a}>
+                            {a}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      foco.analista
+                    )}
+                  </td>
+
+                  {/* FISCAL */}
+                  <td className="px-4 py-3">
+                    {isEditing ? (
+                      <select
+                        className="border rounded px-2 py-1 w-full"
+                        value={editDraft?.asignadoA}
+                        onChange={(e) =>
+                          setEditDraft({
+                            ...editDraft!,
+                            asignadoA: e.target.value,
+                          })
+                        }
+                      >
+                        {fiscales.map((f) => (
+                          <option key={f} value={f}>
+                            {f}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      foco.asignadoA
+                    )}
+                  </td>
+
+                  {/* SUBPROCESOS */}
                   {SUBPROCESOS.map((k) => (
                     <td key={k} className="px-4 py-3 text-center">
                       <input
                         type="checkbox"
-                        checked={foco[k]}
-                        onChange={() => toggleSubproceso(index, k)}
+                        checked={isEditing ? editDraft![k] : foco[k]}
+                        onChange={() =>
+                          isEditing
+                            ? setEditDraft({
+                                ...editDraft!,
+                                [k]: !editDraft![k],
+                              })
+                            : toggleSubproceso(index, k)
+                        }
                       />
                     </td>
                   ))}
 
-                  {/* PROGRESO SVG */}
-                  <td className="px-4 py-3">
-                    <svg width="44" height="44">
-                      <circle
-                        cx="22"
-                        cy="22"
-                        r={radius}
-                        stroke="#e5e7eb"
-                        strokeWidth="4"
-                        fill="none"
-                      />
-                      <circle
-                        cx="22"
-                        cy="22"
-                        r={radius}
-                        stroke="#2563eb"
-                        strokeWidth="4"
-                        fill="none"
-                        strokeDasharray={circumference}
-                        strokeDashoffset={offset}
-                        strokeLinecap="round"
-                        transform="rotate(-90 22 22)"
-                        className="transition-all duration-500"
-                      />
-                      <text
-                        x="50%"
-                        y="50%"
-                        dominantBaseline="middle"
-                        textAnchor="middle"
-                        fontSize="10"
-                        fontWeight="600"
-                      >
-                        {progreso}%
-                      </text>
-                    </svg>
-                  </td>
+                  {/* PROGRESO */}
+                  <td className="px-4 py-3 text-center">{progreso}%</td>
 
                   {/* ACCIONES */}
                   <td className="px-4 py-3">
-                    <div className="flex gap-3 justify-center">
-                      {progreso === 100 && (
-                        <button
-                          onClick={() => handleTerminar(index)}
-                          title="Terminar foco"
-                          className="text-green-600 hover:text-green-700"
-                        >
-                          <CheckCircle size={16} />
-                        </button>
+                    <div className="flex gap-2 justify-center">
+                      {isEditing ? (
+                        <>
+                          <button
+                            onClick={saveEdit}
+                            className="text-green-600"
+                          >
+                            <Save size={16} />
+                          </button>
+                          <button
+                            onClick={cancelEdit}
+                            className="text-red-500"
+                          >
+                            <X size={16} />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          {progreso === 100 && (
+                            <button
+                              onClick={() => handleTerminar(index)}
+                              className="text-green-600"
+                            >
+                              <CheckCircle size={16} />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => startEdit(index, foco)}
+                            className="text-muted-foreground"
+                          >
+                            <Pencil size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(index)}
+                            className="text-red-500"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </>
                       )}
-
-                      <button
-                        onClick={() => setEditingFoco(foco)}
-                        title="Editar foco"
-                        className="text-muted-foreground hover:text-foreground"
-                      >
-                        <Pencil size={16} />
-                      </button>
-
-                      <button
-                        onClick={() => handleDelete(index)}
-                        title="Eliminar foco"
-                        className="text-red-500 hover:text-red-600"
-                      >
-                        <Trash2 size={16} />
-                      </button>
                     </div>
                   </td>
                 </tr>
@@ -282,9 +406,8 @@ export function Tables({ filters }: Props) {
           </tbody>
         </table>
 
-        <div className="mt-3 text-sm text-muted-foreground">
-          {completos} de {total} focos activos con 100% de progreso ({porcentaje}
-          %)
+        <div className="mt-3 text-sm text-muted-foreground text-center">
+          {completos} de {total} focos activos con 100% de progreso ({porcentaje}%)
         </div>
       </div>
     </section>

@@ -1,40 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { BarChartCard } from "./bar-chart-card";
-import type { FocosFilters } from "@/lib/focos/types";
-
-type Foco = {
-  numeroFoco: string;
-  anioFoco: string;
-  texto: string;
-  estadoFoco: string;
-  comuna: string;
-  analista: string;
-  asignadoA: string;
-};
+import type { FocosFilters, Foco } from "@/lib/focos/types";
 
 function groupByCount(items: Foco[], key: keyof Foco) {
   return items.reduce<Record<string, number>>((acc, item) => {
     const value = item[key];
     if (!value) return acc;
-    acc[value] = (acc[value] || 0) + 1;
+    acc[String(value)] = (acc[String(value)] || 0) + 1;
     return acc;
   }, {});
 }
 
-export function Stats({ filters }: { filters: FocosFilters }) {
-  const [focos, setFocos] = useState<Foco[]>([]);
+type Props = {
+  focos: Foco[];
+  filters: FocosFilters;
+};
 
-  useEffect(() => {
-    setFocos(JSON.parse(localStorage.getItem("focos") || "[]"));
-  }, []);
-
+export function Stats({ focos, filters }: Props) {
+  /* ================================
+     FILTROS (reactivos)
+  ================================= */
   const focosFiltrados = useMemo(() => {
     return focos.filter((f) => {
       if (
         filters.search &&
-        !`${f.numeroFoco} ${f.anioFoco} ${f.texto}`
+        !`${f.numeroFoco}-${f.anioFoco} ${f.texto}`
           .toLowerCase()
           .includes(filters.search.toLowerCase())
       )
@@ -48,7 +40,7 @@ export function Stats({ filters }: { filters: FocosFilters }) {
 
       if (filters.analista !== "todos" && f.analista !== filters.analista)
         return false;
-      
+
       if (filters.fiscal !== "todos" && f.asignadoA !== filters.fiscal)
         return false;
 

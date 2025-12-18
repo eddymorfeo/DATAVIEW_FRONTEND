@@ -7,20 +7,36 @@ import { Header } from "@/components/principal/focos/header";
 import { Stats } from "@/components/principal/focos/stats";
 import { StatsSwitches } from "@/components/principal/focos/stats-switches";
 import { Tables } from "@/components/principal/focos/tables";
-import type { FocosFilters } from "@/lib/focos/types";
-import { useState } from "react";
+import type { Foco, FocosFilters } from "@/lib/focos/types";
+import { useEffect, useState } from "react";
 
-const DEFAULT_FILTERS: FocosFilters = {
-  search: "",
-  comuna: "todos",
-  estado: "todos",
-  analista: "todos",
-  fiscal: "todos",
-};
+
 
 export default function Focos() {
 
-  const [filters, setFilters] = useState<FocosFilters>(DEFAULT_FILTERS);
+  const [focos, setFocos] = useState<Foco[]>([]);
+  const [filters, setFilters] = useState({
+    search: "",
+    comuna: "todos",
+    estado: "todos",
+    analista: "todos",
+    fiscal: "todos",
+  });
+
+  useEffect(() => {
+    const data = JSON.parse(localStorage.getItem("focos") || "[]");
+    setFocos(data);
+  }, []);
+
+    function handleClearFilters() {
+    setFilters({
+      search: "",
+      comuna: "todos",
+      estado: "todos",
+      analista: "todos",
+      fiscal: "todos",
+    });
+  }
 
   return (
     <div className="text-foreground">
@@ -29,11 +45,14 @@ export default function Focos() {
       <Filters 
         filters={filters}
         onChange={setFilters}
-        onClear={() => setFilters(DEFAULT_FILTERS)}
+        onClear={handleClearFilters}
       />
       {/* <StatsSwitches /> */}
-      <Stats filters={filters}/>
-      <Tables filters={filters}/>
+      <Stats filters={filters} focos={focos}/>
+      <Tables 
+        focos={focos}
+        setFocos={setFocos}
+        filters={filters}/>
     </div>
   );
 }
