@@ -7,7 +7,7 @@ export default function LoginPage() {
       
       {/* Contenedor ancho que permite alinear el botón a la derecha */}
       <div className="w-full max-w-sm md:max-w-4xl flex justify-end mb-4">
-        <ModeToggle />
+        {/* <ModeToggle /> */}
       </div>
 
       {/* Formulario centrado */}

@@ -3,11 +3,7 @@
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Field,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
 import backgroundLogin from "@/app/img/background_login.jpg";
@@ -15,17 +11,18 @@ import backgroundLogin from "@/app/img/background_login.jpg";
 import Swal from "sweetalert2";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { login } from "@/lib/auth/auth-service";
 import { IconEye, IconEyeOff } from "@tabler/icons-react";
+
+// ✅ Nuevo: login real contra backend
+import { loginWithBackend } from "@/lib/auth/auth-service";
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-   const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -33,46 +30,46 @@ export function LoginForm({
 
     const formData = new FormData(e.currentTarget);
 
-    // Usuario y clave ingresados
-    const username = String(formData.get("user")).trim().toLowerCase();
-    const password = String(formData.get("password")).trim();
+    const username = String(formData.get("user") ?? "")
+      .trim()
+      .toLowerCase();
+    const password = String(formData.get("password") ?? "").trim();
 
-    // Validar credenciales contra users.ts
-    const user = login(username, password);
+    try {
+      // ✅ llama al backend: POST /api/auth/login
+      const result = await loginWithBackend({ username, password });
 
-    if (!user) {
-      setLoading(false);
+      // ✅ guarda token + user (para consumir endpoints protegidos)
+      localStorage.setItem("accessToken", result.accessToken);
+      localStorage.setItem("currentUser", JSON.stringify(result.user));
 
+      // ✅ (opcional) si tu middleware actual depende de cookie
+      document.cookie = `dataview_user=true; path=/;`;
+
+      Swal.fire({
+        icon: "success",
+        title: `Bienvenido ${result.user.fullName}`,
+        showConfirmButton: false,
+        timer: 1000,
+      });
+
+      router.push("/home");
+    } catch (err: any) {
       Swal.fire({
         icon: "error",
         title: "Credenciales inválidas",
-        text: "El usuario o la contraseña no coinciden.",
+        text: err?.message ?? "El usuario o la contraseña no coinciden.",
         confirmButtonColor: "#3085d6",
       });
-
-      return;
+    } finally {
+      setLoading(false);
     }
-
-    // Guardar cookie para middleware
-    document.cookie = `dataview_user=true; path=/;`;
-
-    // Mensaje de éxito
-    Swal.fire({
-      icon: "success",
-      title: `Bienvenido ${user.name}`,
-      showConfirmButton: false,
-      timer: 1000,
-    });
-
-    // Redireccionar al home
-    router.push("/home");
   }
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card className="overflow-hidden p-0">
         <CardContent className="grid p-0 md:grid-cols-2">
-          
           {/* FORMULARIO */}
           <form className="p-6 md:p-8" onSubmit={handleLogin}>
             <FieldGroup>
@@ -88,12 +85,7 @@ export function LoginForm({
               {/* Usuario */}
               <Field>
                 <FieldLabel htmlFor="user">Usuario</FieldLabel>
-                <Input
-                  id="user"
-                  name="user"
-                  type="text"
-                  required
-                />
+                <Input id="user" name="user" type="text" required />
               </Field>
 
               {/* Password */}
@@ -108,11 +100,11 @@ export function LoginForm({
                     className="pr-10"
                   />
 
-                  {/* Ícono de Mostrar/Ocultar */}
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
+                    onClick={() => setShowPassword((prev) => !prev)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition"
+                    aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                   >
                     {showPassword ? (
                       <IconEye size={20} stroke={1.5} />
@@ -137,6 +129,7 @@ export function LoginForm({
               src={backgroundLogin}
               alt="Login Background"
               className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
+              priority
             />
           </div>
         </CardContent>

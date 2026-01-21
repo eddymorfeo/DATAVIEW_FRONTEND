@@ -1,16 +1,8 @@
-"use client"
+"use client";
 
-import {
-  IconDotsVertical,
-  IconLogout,
-} from "@tabler/icons-react"
+import { IconDotsVertical, IconLogout } from "@tabler/icons-react";
 
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar"
-
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,44 +10,46 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 
-import { useEffect, useState } from "react"
-import { getCurrentUser, logout } from "@/lib/auth/auth-service"
-import type { User } from "./config/users"
-import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react";
+import { getCurrentUser, logout } from "@/lib/auth/auth-service";
+import type { AuthUser } from "@/lib/auth/auth-service";
+import { useRouter } from "next/navigation";
 
 function getInitials(name: string) {
   return name
     .split(" ")
+    .filter(Boolean)
     .map((n) => n.charAt(0))
     .join("")
     .toUpperCase();
 }
 
 export function NavUser() {
-  const { isMobile } = useSidebar()
-  const router = useRouter()
+  const { isMobile } = useSidebar();
+  const router = useRouter();
 
-  // Estado donde guardaremos el usuario logeado
-  const [user, setUser] = useState<User | null>(null)
+  // ✅ ahora el tipo corresponde al user que viene del backend
+  const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
-    const loggedUser = getCurrentUser() // lee localStorage
-    setUser(loggedUser)
-  }, [])
+    const loggedUser = getCurrentUser(); // lee localStorage
+    setUser(loggedUser);
+  }, []);
 
-  // Evitamos render si no hay usuario logeado
-  if (!user) return null
+  if (!user) return null;
 
-  const initials = getInitials(user.name);
+  const displayName = user.fullName ?? user.username;
+  const displayEmail = user.email ?? user.username;
+  const initials = getInitials(displayName);
 
   return (
     <SidebarMenu>
@@ -67,14 +61,13 @@ export function NavUser() {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg grayscale">
-                {/* <AvatarImage src={user.avatar} alt={user.name} /> */}
                 <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
               </Avatar>
 
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user.name}</span>
+                <span className="truncate font-medium">{displayName}</span>
                 <span className="text-muted-foreground truncate text-xs">
-                  {user.email}
+                  {displayEmail}
                 </span>
               </div>
 
@@ -95,9 +88,9 @@ export function NavUser() {
                 </Avatar>
 
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user.name}</span>
+                  <span className="truncate font-medium">{displayName}</span>
                   <span className="text-muted-foreground truncate text-xs">
-                    {user.email}
+                    {displayEmail}
                   </span>
                 </div>
               </div>
@@ -107,17 +100,16 @@ export function NavUser() {
 
             <DropdownMenuItem
               onClick={() => {
-                logout()
-                router.push("/login")
+                logout();
+                router.push("/login");
               }}
             >
               <IconLogout />
               Log out
             </DropdownMenuItem>
-
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
-  )
+  );
 }

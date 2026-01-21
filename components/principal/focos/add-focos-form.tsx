@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -19,14 +19,25 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 
-import { analistas } from "@/lib/focos/analistas";
-import { comunas } from "@/lib/focos/comunas";
-import { fiscales } from "@/lib/focos/fiscales";
+import type { Foco } from "@/lib/focos/types";
+import { createFoco } from "@/lib/focos/focos-service";
+
+import {
+  fetchAnalistas,
+  fetchComunas,
+  fetchFiscales,
+  type ComunaItem,
+  type UserItem,
+} from "@/lib/focos/lookups-service";
 
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 7 }, (_, i) => `${currentYear - 5 + i}`);
+
+// ✅ Estado default de creación
+const DEFAULT_STATUS_ID = "917265b4-2688-483b-8c19-c4412e385b0d"; // Vigente
 
 type Errors = {
   numero?: string;
@@ -36,113 +47,204 @@ type Errors = {
   comuna?: string;
   analista?: string;
   fiscal?: string;
+  createdBy?: string;
 };
 
-export function AddFocosForm() {
+type Props = {
+  onCreated: (foco: Foco) => void;
+  onCancel: () => void;
+};
+
+function safeJsonParse<T>(value: string | null): T | null {
+  if (!value) return null;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * ✅ Ajusta esta función si tu login guarda el usuario en otra key.
+ * Intenta:
+ * - localStorage.userId / user_id
+ * - localStorage.user (objeto con id)
+ * - localStorage.accessToken (si el backend mete sub/id en JWT -> requeriría decode)
+ */
+function getLoggedUserId(): string | null {
+  const direct =
+    localStorage.getItem("userId") ||
+    localStorage.getItem("user_id") ||
+    localStorage.getItem("id");
+
+  if (direct) return direct;
+
+  const userObj =
+    safeJsonParse<{ id?: string }>(localStorage.getItem("user")) ||
+    safeJsonParse<{ id?: string }>(localStorage.getItem("auth_user")) ||
+    safeJsonParse<{ id?: string }>(localStorage.getItem("currentUser"));
+
+  return userObj?.id ?? null;
+}
+
+export function AddFocosForm({ onCreated, onCancel }: Props) {
   const [numero, setNumero] = useState("");
   const [anio, setAnio] = useState("");
   const [titulo, setTitulo] = useState("");
   const [descripcion, setDescripcion] = useState("");
-  const [comuna, setComuna] = useState("");
-  const [analista, setAnalista] = useState("");
-  const [fiscal, setFiscal] = useState("");
+
+  // IDs DB
+  const [comunaId, setComunaId] = useState("");
+  const [analistaId, setAnalistaId] = useState("");
+  const [fiscalId, setFiscalId] = useState("");
 
   const [errors, setErrors] = useState<Errors>({});
+  const [saving, setSaving] = useState(false);
 
-  // ===== Handlers reactivos =====
+  const [loadingLookups, setLoadingLookups] = useState(true);
+  const [comunasDb, setComunasDb] = useState<ComunaItem[]>([]);
+  const [analistasDb, setAnalistasDb] = useState<UserItem[]>([]);
+  const [fiscalesDb, setFiscalesDb] = useState<UserItem[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoadingLookups(true);
+
+        const [comunas, analistas, fiscales] = await Promise.all([
+          fetchComunas(),
+          fetchAnalistas(),
+          fetchFiscales(),
+        ]);
+
+        setComunasDb((comunas ?? []).filter((c) => c.is_active));
+        setAnalistasDb((analistas ?? []).filter((u) => u.is_active));
+        setFiscalesDb((fiscales ?? []).filter((u) => u.is_active));
+      } catch (e: any) {
+        toast.error("No se pudieron cargar los select", {
+          description: e?.message ?? "Error inesperado",
+        });
+      } finally {
+        setLoadingLookups(false);
+      }
+    })();
+  }, []);
+
+  const isDisabled = saving || loadingLookups;
+
+  const comunaOptions = useMemo(
+    () => [...comunasDb].sort((a, b) => a.name.localeCompare(b.name)),
+    [comunasDb]
+  );
+
+  const analistaOptions = useMemo(
+    () => [...analistasDb].sort((a, b) => a.full_name.localeCompare(b.full_name)),
+    [analistasDb]
+  );
+
+  const fiscalOptions = useMemo(
+    () => [...fiscalesDb].sort((a, b) => a.full_name.localeCompare(b.full_name)),
+    [fiscalesDb]
+  );
 
   function handleNumeroChange(value: string) {
     const numericValue = value.replace(/\D/g, "");
     setNumero(numericValue);
-
-    setErrors((e) => ({
-      ...e,
-      numero: numericValue ? undefined : "No has ingresado un número de foco válido.",
-    }));
+    setErrors((e) => ({ ...e, numero: numericValue ? undefined : "Ingresa un número válido." }));
   }
 
-  function handleAnioChange(value: string) {
-    setAnio(value);
-    setErrors((e) => ({ ...e, anio: undefined }));
-  }
-
-  function handleTituloChange(value: string) {
-    setTitulo(value);
-    setErrors((e) => ({ ...e, titulo: value ? undefined : e.titulo }));
-  }
-
-  function handleDescripcionChange(value: string) {
-    setDescripcion(value);
-    setErrors((e) => ({ ...e, descripcion: value ? undefined : e.descripcion }));
-  }
-
-  function handleSelectChange(
-    setter: (v: string) => void,
-    field: keyof Errors
-  ) {
+  function handleSelectChange(setter: (v: string) => void, field: keyof Errors) {
     return (value: string) => {
       setter(value);
       setErrors((e) => ({ ...e, [field]: undefined }));
     };
   }
 
-  // ===== Guardar =====
-  function handleGuardarFoco() {
+  function validate(): Errors {
     const newErrors: Errors = {};
 
     if (!numero) newErrors.numero = "No has ingresado un número de foco válido.";
     if (!anio) newErrors.anio = "Debes seleccionar un año.";
     if (!titulo) newErrors.titulo = "El título del foco es obligatorio.";
     if (!descripcion) newErrors.descripcion = "La descripción es obligatoria.";
-    if (!comuna) newErrors.comuna = "Debes seleccionar una comuna.";
-    if (!analista) newErrors.analista = "Debes seleccionar un analista.";
-    if (!fiscal) newErrors.fiscal = "Debes seleccionar un fiscal.";
+    if (!comunaId) newErrors.comuna = "Debes seleccionar una comuna.";
+    if (!analistaId) newErrors.analista = "Debes seleccionar un analista.";
+    if (!fiscalId) newErrors.fiscal = "Debes seleccionar un fiscal.";
 
+    const createdBy = getLoggedUserId();
+    if (!createdBy) newErrors.createdBy = "No se pudo determinar el usuario logueado (createdBy).";
+
+    return newErrors;
+  }
+
+  function resetForm() {
+    setNumero("");
+    setAnio("");
+    setTitulo("");
+    setDescripcion("");
+    setComunaId("");
+    setAnalistaId("");
+    setFiscalId("");
+    setErrors({});
+  }
+
+  async function handleGuardarFoco() {
+    const newErrors = validate();
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length > 0) {
-      toast.error("Formulario incompleto", {
-        description: "Revisa los campos marcados en rojo.",
-      });
+      toast.error("Formulario incompleto", { description: "Revisa los campos marcados en rojo." });
       return;
     }
 
-    const nuevoFoco: any = {
-      numeroFoco: numero,
-      anioFoco: anio,
-      texto: titulo,
-      descripcion,
-      fecha: new Date().toLocaleString(),
-      completada: false,
-      estadoFoco: "Vigente",
-      analista,
-      asignadoA: fiscal,
-      comuna,
-      ordenInvestigar: false,
-      instruccionParticular: false,
-      diligencias: false,
-      reunionPolicial: false,
-      informes: false,
-      procedimientos: false,
-    };
+    const createdBy = getLoggedUserId()!;
 
-    const focos = JSON.parse(localStorage.getItem("focos") || "[]");
-    focos.unshift(nuevoFoco);
-    localStorage.setItem("focos", JSON.stringify(focos));
+    try {
+      setSaving(true);
 
-    toast.success("Foco creado correctamente");
+      // 🔎 Ayuda para debug rápido (mira en DevTools si vuelve el 422)
+      const payload = {
+        focoNumber: Number(numero),
+        focoYear: Number(anio),
+        title: titulo,
+        description: descripcion,
+        comunaId,
+        statusId: DEFAULT_STATUS_ID,
+        analystId: analistaId,
+        assignedToId: fiscalId,
+        isComplete: false,
+        ordenInvestigar: false,
+        instruccionParticular: false,
+        diligencias: false,
+        reunionPolicial: false,
+        informes: false,
+        procedimientos: false,
+        createdBy,
+      };
+      console.log("[POST /focos payload]", payload);
 
-    setTimeout(() => window.location.reload(), 800);
+      const created = await createFoco(payload);
+
+      toast.success("Foco creado correctamente");
+      onCreated(created);
+      resetForm();
+    } catch (e: any) {
+      toast.error("No se pudo crear el foco", {
+        description: e?.message ?? "Error inesperado",
+      });
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <DialogContent className="max-w-xl">
       <DialogHeader>
         <DialogTitle>Añadir Nuevo Foco</DialogTitle>
+        <DialogDescription>Completa los datos para crear un foco nuevo.</DialogDescription>
       </DialogHeader>
 
       <div className="space-y-6 py-4">
-        {/* Número / Año */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1">
             <Label>Número</Label>
@@ -150,19 +252,22 @@ export function AddFocosForm() {
               inputMode="numeric"
               value={numero}
               onChange={(e) => handleNumeroChange(e.target.value)}
+              disabled={isDisabled}
             />
             {errors.numero && <p className="text-sm text-red-500">{errors.numero}</p>}
           </div>
 
           <div className="space-y-1">
             <Label>Año</Label>
-            <Select value={anio} onValueChange={handleAnioChange}>
+            <Select value={anio} onValueChange={(v) => { setAnio(v); setErrors((e)=>({...e, anio: undefined})) }} disabled={isDisabled}>
               <SelectTrigger className="h-10">
                 <SelectValue placeholder="Selecciona año" />
               </SelectTrigger>
               <SelectContent>
                 {years.map((y) => (
-                  <SelectItem key={y} value={y}>{y}</SelectItem>
+                  <SelectItem key={y} value={y}>
+                    {y}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -170,37 +275,43 @@ export function AddFocosForm() {
           </div>
         </div>
 
-        {/* Título */}
         <div className="space-y-1">
           <Label>Nombre / Título del Foco</Label>
-          <Input value={titulo} onChange={(e) => handleTituloChange(e.target.value)} />
+          <Input
+            value={titulo}
+            onChange={(e) => { setTitulo(e.target.value); setErrors((er)=>({...er, titulo: undefined})) }}
+            disabled={isDisabled}
+          />
           {errors.titulo && <p className="text-sm text-red-500">{errors.titulo}</p>}
         </div>
 
-        {/* Descripción */}
         <div className="space-y-1">
           <Label>Breve descripción del foco</Label>
           <Textarea
             rows={4}
             value={descripcion}
-            onChange={(e) => handleDescripcionChange(e.target.value)}
+            onChange={(e) => { setDescripcion(e.target.value); setErrors((er)=>({...er, descripcion: undefined})) }}
+            disabled={isDisabled}
           />
-          {errors.descripcion && (
-            <p className="text-sm text-red-500">{errors.descripcion}</p>
-          )}
+          {errors.descripcion && <p className="text-sm text-red-500">{errors.descripcion}</p>}
         </div>
 
-        {/* Comuna / Analista */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1">
             <Label>Comuna</Label>
-            <Select value={comuna} onValueChange={handleSelectChange(setComuna, "comuna")}>
+            <Select
+              value={comunaId}
+              onValueChange={handleSelectChange(setComunaId, "comuna")}
+              disabled={isDisabled}
+            >
               <SelectTrigger className="h-10">
-                <SelectValue placeholder="Selecciona comuna" />
+                <SelectValue placeholder={loadingLookups ? "Cargando..." : "Selecciona comuna"} />
               </SelectTrigger>
               <SelectContent>
-                {comunas.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                {comunaOptions.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -209,13 +320,19 @@ export function AddFocosForm() {
 
           <div className="space-y-1">
             <Label>Analista</Label>
-            <Select value={analista} onValueChange={handleSelectChange(setAnalista, "analista")}>
+            <Select
+              value={analistaId}
+              onValueChange={handleSelectChange(setAnalistaId, "analista")}
+              disabled={isDisabled}
+            >
               <SelectTrigger className="h-10">
-                <SelectValue placeholder="Selecciona analista" />
+                <SelectValue placeholder={loadingLookups ? "Cargando..." : "Selecciona analista"} />
               </SelectTrigger>
               <SelectContent>
-                {analistas.map((a) => (
-                  <SelectItem key={a} value={a}>{a}</SelectItem>
+                {analistaOptions.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.full_name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -223,27 +340,39 @@ export function AddFocosForm() {
           </div>
         </div>
 
-        {/* Fiscal */}
         <div className="space-y-1">
           <Label>Fiscal Asignado</Label>
-          <Select value={fiscal} onValueChange={handleSelectChange(setFiscal, "fiscal")}>
+          <Select
+            value={fiscalId}
+            onValueChange={handleSelectChange(setFiscalId, "fiscal")}
+            disabled={isDisabled}
+          >
             <SelectTrigger className="h-10">
-              <SelectValue placeholder="Selecciona fiscal" />
+              <SelectValue placeholder={loadingLookups ? "Cargando..." : "Selecciona fiscal"} />
             </SelectTrigger>
             <SelectContent>
-              {fiscales.map((f) => (
-                <SelectItem key={f} value={f}>{f}</SelectItem>
+              {fiscalOptions.map((f) => (
+                <SelectItem key={f.id} value={f.id}>
+                  {f.full_name}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
           {errors.fiscal && <p className="text-sm text-red-500">{errors.fiscal}</p>}
         </div>
+
+        {errors.createdBy && (
+          <p className="text-sm text-red-500">{errors.createdBy}</p>
+        )}
       </div>
 
       <DialogFooter className="flex justify-end gap-3">
-        <Button variant="secondary">Cancelar</Button>
-        <Button onClick={handleGuardarFoco} className="bg-blue-600 text-white">
-          Guardar Foco
+        <Button variant="secondary" onClick={onCancel} disabled={saving}>
+          Cancelar
+        </Button>
+
+        <Button onClick={handleGuardarFoco} className="bg-blue-600 text-white" disabled={isDisabled}>
+          {saving ? "Guardando..." : "Guardar Foco"}
         </Button>
       </DialogFooter>
     </DialogContent>

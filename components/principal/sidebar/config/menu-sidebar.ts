@@ -15,21 +15,21 @@ export const sidebarMenu = [
       icon: IconTrendingUp,
     },
     {
-      name: "Lineas Investigativas",
-      description: "Monitorea el avance, estadísticas y gestión de focos delictuales activos y terminados.",
-      url: "/home/focos",
-      icon: IconTrendingUp,
-    },
-    {
       name: "Monitoreo Homicidios",
       description: "Visualiza casos, georreferenciación, estados y estadísticas de homicidios.",
       url: "/home/homicidios",
       icon: IconMapPin,
     },
     {
+      name: "Lineas Investigativas",
+      description: "Monitorea el avance, estadísticas y gestión de focos delictuales activos y terminados.",
+      url: "/home/focos",
+      icon: IconTrendingUp,
+    },    
+    {
       name: "RAF",
       description: "Esta es una descripcion de prueba.",
       url: "/home/raf",
       icon: IconFileWord,
-    },
+    }
   ]

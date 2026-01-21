@@ -17,7 +17,6 @@ import {
 import { NavUser } from "./nav-user"
 import { NavDocuments } from "./nav-documents"
 import { sidebarMenu } from "./config/menu-sidebar"
-import { users } from "./config/users"
 import Link from "next/link"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {

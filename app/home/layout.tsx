@@ -11,7 +11,7 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
     <SidebarProvider
       style={
         {
-          "--sidebar-width": "calc(var(--spacing) * 72)",
+          "--sidebar-width": "calc(var(--spacing) * 53)",
           "--header-height": "calc(var(--spacing) * 12)",
         } as React.CSSProperties
       }
