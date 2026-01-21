@@ -15,9 +15,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "sonner";
 
 function safe(value: string | null | undefined) {
   return value?.trim() ? value : "-";
+}
+
+function allTrueDraft(draft: EditDraft | null | undefined) {
+  if (!draft) return false;
+  return (
+    draft.ordenInvestigar &&
+    draft.instruccionParticular &&
+    draft.diligencias &&
+    draft.reunionPolicial &&
+    draft.informes &&
+    draft.procedimientos
+  );
 }
 
 export type EditDraft = {
@@ -50,6 +63,8 @@ export type FocoTableMeta = {
   editingId: string | null;
   draft: EditDraft | null;
 
+  terminadoStatusId: string | null;
+
   startEdit: (foco: Foco) => void;
   cancelEdit: () => void;
   patchDraft: (patch: Partial<EditDraft>) => void;
@@ -65,7 +80,8 @@ export type FocoTableMeta = {
 export const focoColumns: ColumnDef<Foco>[] = [
   {
     accessorKey: "foco_number",
-    header: "N° Foco",
+    header: "Foco",
+    meta: { thClass: "w-[60px]", tdClass: "w-[60px]" },
     cell: ({ row, table }) => {
       const meta = table.options.meta as FocoTableMeta | undefined;
       const foco = row.original;
@@ -87,6 +103,7 @@ export const focoColumns: ColumnDef<Foco>[] = [
   {
     accessorKey: "foco_year",
     header: "Año",
+    meta: { thClass: "w-[70px]", tdClass: "w-[70px]" },
     cell: ({ row, table }) => {
       const meta = table.options.meta as FocoTableMeta | undefined;
       const foco = row.original;
@@ -107,18 +124,21 @@ export const focoColumns: ColumnDef<Foco>[] = [
   {
     accessorKey: "title",
     header: "Título",
+    meta: { thClass: "w-[90px]", tdClass: "w-[90px]" },
     cell: ({ row, table }) => {
-      const meta = table.options.meta as FocoTableMeta | undefined;
+      const metaTable = table.options.meta as FocoTableMeta | undefined;
       const foco = row.original;
-      const isEditing = meta?.editingId === foco.id;
+      const isEditing = metaTable?.editingId === foco.id;
 
-      if (!isEditing) return safe(foco.title);
+      if (!isEditing) {
+        return <span className="block truncate">{safe(foco.title)}</span>;
+      }
 
       return (
         <Input
           className="h-9 w-[90px]"
-          value={meta?.draft?.title ?? ""}
-          onChange={(e) => meta?.patchDraft({ title: e.target.value })}
+          value={metaTable?.draft?.title ?? ""}
+          onChange={(e) => metaTable?.patchDraft({ title: e.target.value })}
         />
       );
     },
@@ -126,21 +146,25 @@ export const focoColumns: ColumnDef<Foco>[] = [
   {
     accessorKey: "description",
     header: "Descripción",
+    meta: { thClass: "w-[130px]", tdClass: "w-[130px]" },
     cell: ({ row, table }) => {
-      const meta = table.options.meta as FocoTableMeta | undefined;
+      const metaTable = table.options.meta as FocoTableMeta | undefined;
       const foco = row.original;
-      const isEditing = meta?.editingId === foco.id;
+      const isEditing = metaTable?.editingId === foco.id;
 
       if (!isEditing) {
-        const value = safe(foco.description);
-        return value.length > 60 ? `${value.slice(0, 60)}…` : value;
+        return (
+          <span className="block truncate" title={foco.description ?? ""}>
+            {safe(foco.description)}
+          </span>
+        );
       }
 
       return (
         <Input
           className="h-9 w-[90px]"
-          value={meta?.draft?.description ?? ""}
-          onChange={(e) => meta?.patchDraft({ description: e.target.value })}
+          value={metaTable?.draft?.description ?? ""}
+          onChange={(e) => metaTable?.patchDraft({ description: e.target.value })}
         />
       );
     },
@@ -149,17 +173,19 @@ export const focoColumns: ColumnDef<Foco>[] = [
   // ✅ Comuna sortable + editable select
   {
     accessorKey: "comuna_name",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        className="-ml-4"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Comuna
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
+    header: "Comuna",
+    // ({ column }) => (
+    //   <Button
+    //     variant="ghost"
+    //     className="-ml-4"
+    //     onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+    //   >
+    //     Comuna
+    //     <ArrowUpDown className="ml-2 h-4 w-4" />
+    //   </Button>
+    // ),
     sortingFn: "alphanumeric",
+    meta: { thClass: "w-[130px]", tdClass: "w-[130px] min-w-0" },
     cell: ({ row, table }) => {
       const meta = table.options.meta as FocoTableMeta | undefined;
       const foco = row.original;
@@ -172,8 +198,8 @@ export const focoColumns: ColumnDef<Foco>[] = [
           value={meta?.draft?.comunaId ?? ""}
           onValueChange={(v) => meta?.patchDraft({ comunaId: v })}
         >
-          <SelectTrigger className="h-9 w-[90px]">
-            <SelectValue placeholder="Selecciona comuna" />
+          <SelectTrigger className="h-9 w-[90px] min-w-0 overflow-hidden">
+            <SelectValue className="truncate" placeholder="Selecciona comuna" />
           </SelectTrigger>
           <SelectContent>
             {(meta?.comunas ?? []).map((c) => (
@@ -191,6 +217,7 @@ export const focoColumns: ColumnDef<Foco>[] = [
   {
     accessorKey: "status_name",
     header: "Estado",
+    meta: { thClass: "w-[130px]", tdClass: "w-[130px] min-w-0" },
     cell: ({ row, table }) => {
       const meta = table.options.meta as FocoTableMeta | undefined;
       const foco = row.original;
@@ -198,20 +225,70 @@ export const focoColumns: ColumnDef<Foco>[] = [
 
       if (!isEditing) return safe(foco.status_name);
 
+      const terminadoId = meta?.terminadoStatusId ?? null;
+      const draftAllTrue = allTrueDraft(meta?.draft);
+
+      const isCurrentlyTerminado = Boolean(terminadoId && foco.status_id === terminadoId);
+      const isDraftTerminado = Boolean(terminadoId && meta?.draft?.statusId === terminadoId);
+
+      const blockChangeAwayFromTerminado = isCurrentlyTerminado && draftAllTrue;
+      // ↑ si está Terminado y todos true, no puede salir de Terminado
+      // hasta que baje un subproceso a false.
+
       return (
         <Select
           value={meta?.draft?.statusId ?? ""}
-          onValueChange={(v) => meta?.patchDraft({ statusId: v })}
+          onValueChange={(v) => {
+            if (!terminadoId) {
+              meta?.patchDraft({ statusId: v });
+              return;
+            }
+
+            const wantsTerminado = v === terminadoId;
+            const wantsOther = v !== terminadoId;
+
+            // 1) No dejar seleccionar Terminado si no están todos los subprocesos en true
+            if (wantsTerminado && !draftAllTrue) {
+              toast.error("No puedes marcar como Terminado", {
+                description: "Debes tener todos los subprocesos en Sí (true) antes de terminar.",
+              });
+              return;
+            }
+
+            // 2) No dejar salir de Terminado si todos los subprocesos siguen true
+            if (wantsOther && blockChangeAwayFromTerminado) {
+              toast.error("No puedes cambiar el estado", {
+                description:
+                  "Para salir de 'Terminado', primero debes cambiar al menos un subproceso a No (false).",
+              });
+              return;
+            }
+
+            meta?.patchDraft({ statusId: v });
+          }}
         >
           <SelectTrigger className="h-9 w-[90px]">
             <SelectValue placeholder="Selecciona estado" />
           </SelectTrigger>
+
           <SelectContent>
-            {(meta?.statuses ?? []).map((s) => (
-              <SelectItem key={s.id} value={s.id}>
-                {s.name}
-              </SelectItem>
-            ))}
+            {(meta?.statuses ?? []).map((s) => {
+              const isTerminadoOption = Boolean(terminadoId && s.id === terminadoId);
+
+              // Deshabilitar opción Terminado si no están todos true
+              const disableTerminadoOption = isTerminadoOption && !draftAllTrue;
+
+              // Si está Terminado y todos true, deshabilitar cualquier otro estado
+              const disableOtherOptions = blockChangeAwayFromTerminado && !isTerminadoOption;
+
+              const disabled = disableTerminadoOption || disableOtherOptions;
+
+              return (
+                <SelectItem key={s.id} value={s.id} disabled={disabled}>
+                  {s.name}
+                </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
       );
@@ -253,6 +330,7 @@ export const focoColumns: ColumnDef<Foco>[] = [
   {
     accessorKey: "assigned_to_name",
     header: "Fiscal",
+    meta: { thClass: "w-[180px]", tdClass: "w-[180px] min-w-0" },
     cell: ({ row, table }) => {
       const meta = table.options.meta as FocoTableMeta | undefined;
       const foco = row.original;
@@ -283,7 +361,8 @@ export const focoColumns: ColumnDef<Foco>[] = [
   // Subprocesos: editables con checkbox
   {
     accessorKey: "orden_investigar",
-    header: "Orden Investigar",
+    header: "Orden Invest.",
+    meta: { thClass: "w-[100px]", tdClass: "w-[100px] min-w-0" },
     cell: ({ row, table }) => {
       const meta = table.options.meta as FocoTableMeta | undefined;
       const foco = row.original;
@@ -303,7 +382,8 @@ export const focoColumns: ColumnDef<Foco>[] = [
   },
   {
     accessorKey: "instruccion_particular",
-    header: "Instr. Particular",
+    header: "Instr. Partic",
+    meta: { thClass: "w-[100px]", tdClass: "w-[100px] min-w-0" },
     cell: ({ row, table }) => {
       const meta = table.options.meta as FocoTableMeta | undefined;
       const foco = row.original;
@@ -324,6 +404,7 @@ export const focoColumns: ColumnDef<Foco>[] = [
   {
     accessorKey: "diligencias",
     header: "Diligencias",
+    meta: { thClass: "w-[100px]", tdClass: "w-[100px] min-w-0" },
     cell: ({ row, table }) => {
       const meta = table.options.meta as FocoTableMeta | undefined;
       const foco = row.original;
@@ -343,7 +424,8 @@ export const focoColumns: ColumnDef<Foco>[] = [
   },
   {
     accessorKey: "reunion_policial",
-    header: "Reunión Policial",
+    header: "Reu. Policial",
+    meta: { thClass: "w-[100px]", tdClass: "w-[100px] min-w-0" },
     cell: ({ row, table }) => {
       const meta = table.options.meta as FocoTableMeta | undefined;
       const foco = row.original;
@@ -364,6 +446,7 @@ export const focoColumns: ColumnDef<Foco>[] = [
   {
     accessorKey: "informes",
     header: "Informes",
+    meta: { thClass: "w-[100px]", tdClass: "w-[100px] min-w-0" },
     cell: ({ row, table }) => {
       const meta = table.options.meta as FocoTableMeta | undefined;
       const foco = row.original;
@@ -383,7 +466,8 @@ export const focoColumns: ColumnDef<Foco>[] = [
   },
   {
     accessorKey: "procedimientos",
-    header: "Procedimientos",
+    header: "Proced.",
+    meta: { thClass: "w-[100px]", tdClass: "w-[100px] min-w-0" },
     cell: ({ row, table }) => {
       const meta = table.options.meta as FocoTableMeta | undefined;
       const foco = row.original;
@@ -407,6 +491,7 @@ export const focoColumns: ColumnDef<Foco>[] = [
     id: "acciones",
     header: "Acciones",
     enableHiding: false,
+    meta: { thClass: "w-[120px]", tdClass: "w-[120px]" },
     cell: ({ row, table }) => {
       const meta = table.options.meta as FocoTableMeta | undefined;
       const foco = row.original;
@@ -415,23 +500,25 @@ export const focoColumns: ColumnDef<Foco>[] = [
 
       if (isEditing) {
         return (
-          <div className="flex items-center">
+          <div className="flex items-center gap-1">
             <Button
               variant="ghost"
               size="icon"
               title="Guardar cambios"
+              className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
               onClick={() => meta?.requestUpdate(foco)}
             >
-              <Save className="h-4 w-4" />
+              <Save className="h-4 w-2" />
             </Button>
 
             <Button
               variant="ghost"
               size="icon"
               title="Cancelar"
+              className="text-muted-foreground hover:bg-muted/60"
               onClick={() => meta?.cancelEdit()}
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-2" />
             </Button>
           </div>
         );
@@ -440,23 +527,25 @@ export const focoColumns: ColumnDef<Foco>[] = [
       const terminateDisabled = meta ? !meta.canTerminate(foco) : true;
 
       return (
-        <div className="flex items-center">
+        <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon"
             title="Editar"
+            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30"
             onClick={() => meta?.startEdit(foco)}
           >
-            <Pencil className="h-4 w-4" />
+            <Pencil className="h-4 w-2" />
           </Button>
 
           <Button
             variant="ghost"
             size="icon"
             title="Eliminar"
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
             onClick={() => meta?.requestDelete(foco)}
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-4 w-2" />
           </Button>
 
           <Button
@@ -464,12 +553,14 @@ export const focoColumns: ColumnDef<Foco>[] = [
             size="icon"
             title="Terminar"
             disabled={terminateDisabled}
+            className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 disabled:opacity-40 dark:hover:bg-emerald-950/30"
             onClick={() => meta?.requestTerminate(foco)}
           >
-            <CheckCircle2 className="h-4 w-4" />
+            <CheckCircle2 className="h-4 w-2" />
           </Button>
         </div>
       );
     },
   },
+
 ];

@@ -31,12 +31,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+type ColumnUiMeta = {
+  thClass?: string; // ancho/estilo header
+  tdClass?: string; // ancho/estilo celdas
+};
+
 type Props<TData, TValue> = {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
-
-  // ✅ permite pasar handlers/estado a columnas via table.options.meta
-  meta?: any;
+  meta?: any; // (tu meta actual)
 };
 
 export function DataTable<TData, TValue>({ columns, data, meta }: Props<TData, TValue>) {
@@ -47,7 +50,7 @@ export function DataTable<TData, TValue>({ columns, data, meta }: Props<TData, T
   const table = useReactTable({
     data,
     columns,
-    meta, // ✅ aquí!
+    meta,
     state: { sorting, columnFilters, columnVisibility },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -95,31 +98,68 @@ export function DataTable<TData, TValue>({ columns, data, meta }: Props<TData, T
         </DropdownMenu>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
+      {/* ✅ contenedor con borde/sombra + scroll horizontal si hace falta */}
+      <div className="rounded-lg border bg-background shadow-sm overflow-x-hidden">
+        {/* ✅ table-fixed para respetar anchos fijos */}
+        <Table className="w-full table-fixed">
+          <TableHeader className="bg-muted/60">
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
+              <TableRow key={headerGroup.id} className="hover:bg-muted/60">
+                {headerGroup.headers.map((header) => {
+                  const ui = (header.column.columnDef.meta ?? {}) as ColumnUiMeta;
+
+                  return (
+                    <TableHead
+                      key={header.id}
+                      className={[
+                        "whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-muted-foreground",
+                        ui.thClass ?? "",
+                      ].join(" ")}
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  );
+                })}
               </TableRow>
             ))}
           </TableHeader>
 
           <TableBody>
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+              table.getRowModel().rows.map((row) => {
+                const terminadoStatusId = meta?.terminadoStatusId as string | null | undefined;
+                const rowStatusId = (row.original as any)?.status_id as string | undefined;
+                const isTerminado = Boolean(terminadoStatusId && rowStatusId === terminadoStatusId);
+
+                return (
+                  <TableRow
+                    key={row.id}
+                    className={[
+                      "border-b transition-colors hover:bg-muted/40",
+                      // ✅ fila verde si Terminado
+                      isTerminado ? "bg-emerald-50/70 dark:bg-emerald-950/25" : "",
+                    ].join(" ")}
+                  >
+                    {row.getVisibleCells().map((cell) => {
+                      const ui = (cell.column.columnDef.meta ?? {}) as ColumnUiMeta;
+
+                      return (
+                        <TableCell
+                          key={cell.id}
+                          className={[
+                            "align-middle",
+                            ui.tdClass ?? "",
+                          ].join(" ")}
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
@@ -137,20 +177,10 @@ export function DataTable<TData, TValue>({ columns, data, meta }: Props<TData, T
         </div>
 
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
+          <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
             Previous
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
+          <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
             Next
           </Button>
         </div>

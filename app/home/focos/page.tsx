@@ -52,6 +52,18 @@ function allTrue(foco: Foco) {
   );
 }
 
+function allTrueDraft(draft: EditDraft | null) {
+  if (!draft) return false;
+  return (
+    draft.ordenInvestigar &&
+    draft.instruccionParticular &&
+    draft.diligencias &&
+    draft.reunionPolicial &&
+    draft.informes &&
+    draft.procedimientos
+  );
+}
+
 export default function Focos() {
   const [focos, setFocos] = useState<Foco[]>([]);
 
@@ -225,6 +237,34 @@ export default function Focos() {
   async function doUpdate() {
     if (!pendingFoco || !draft) return;
 
+    if (terminadoStatusId) {
+      const draftAllTrue = allTrueDraft(draft);
+
+      const isCurrentlyTerminado = pendingFoco.status_id === terminadoStatusId;
+      const wantsTerminado = draft.statusId === terminadoStatusId;
+      const wantsOther = draft.statusId !== terminadoStatusId;
+
+      // No dejar seleccionar Terminado si no están todos true
+      if (wantsTerminado && !draftAllTrue) {
+        toast.error("No puedes marcar como Terminado", {
+          description: "Debes tener todos los subprocesos en Sí (true) antes de terminar.",
+        });
+        setConfirmUpdateOpen(false);
+        setPendingFoco(null);
+        return;
+      }
+
+      // No dejar salir de Terminado si todos siguen true
+      if (isCurrentlyTerminado && wantsOther && draftAllTrue) {
+        toast.error("No puedes cambiar el estado", {
+          description: "Para salir de 'Terminado', primero debes cambiar al menos un subproceso a No (false).",
+        });
+        setConfirmUpdateOpen(false);
+        setPendingFoco(null);
+        return;
+      }
+    }
+
     try {
       setSaving(true);
 
@@ -359,6 +399,8 @@ export default function Focos() {
 
       editingId,
       draft,
+
+      terminadoStatusId,
 
       startEdit,
       cancelEdit,
