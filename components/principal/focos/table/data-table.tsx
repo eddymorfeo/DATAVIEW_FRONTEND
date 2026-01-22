@@ -5,102 +5,55 @@ import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
   SortingState,
-  ColumnFiltersState,
   VisibilityState,
 } from "@tanstack/react-table";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 type ColumnUiMeta = {
-  thClass?: string; // ancho/estilo header
-  tdClass?: string; // ancho/estilo celdas
+  thClass?: string;
+  tdClass?: string;
 };
 
 type Props<TData, TValue> = {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
-  meta?: any; // (tu meta actual)
+  meta?: any;
 };
+
+function getRowStatusId(rowOriginal: any) {
+  return rowOriginal?.status_id ?? rowOriginal?.statusId ?? null;
+}
+
+function getRowStatusName(rowOriginal: any) {
+  return rowOriginal?.status_name ?? rowOriginal?.statusName ?? null;
+}
 
 export function DataTable<TData, TValue>({ columns, data, meta }: Props<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
 
   const table = useReactTable({
     data,
     columns,
     meta,
-    state: { sorting, columnFilters, columnVisibility },
+    state: { sorting, columnVisibility },
     onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
   });
 
-  const titleColumn = table.getColumn("title");
-
   return (
-    <div className="w-full space-y-4">
-      <div className="flex items-center gap-2">
-        <Input
-          placeholder="Filtrar por título..."
-          value={(titleColumn?.getFilterValue() as string) ?? ""}
-          onChange={(event) => titleColumn?.setFilterValue(event.target.value)}
-          className="max-w-sm"
-        />
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-auto">
-              Columns
-            </Button>
-          </DropdownMenuTrigger>
-
-          <DropdownMenuContent align="end">
-            {table
-              .getAllColumns()
-              .filter((column) => column.getCanHide())
-              .map((column) => (
-                <DropdownMenuCheckboxItem
-                  key={column.id}
-                  className="capitalize"
-                  checked={column.getIsVisible()}
-                  onCheckedChange={(value) => column.toggleVisibility(!!value)}
-                >
-                  {column.id}
-                </DropdownMenuCheckboxItem>
-              ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {/* ✅ contenedor con borde/sombra + scroll horizontal si hace falta */}
-      <div className="rounded-lg border bg-background shadow-sm overflow-x-hidden">
-        {/* ✅ table-fixed para respetar anchos fijos */}
+    <div className="w-full space-y-3">
+      {/* ✅ contenedor sin scroll horizontal */}
+      <div className="rounded-xl border bg-background shadow-sm overflow-hidden">
         <Table className="w-full table-fixed">
           <TableHeader className="bg-muted/60">
             {table.getHeaderGroups().map((headerGroup) => (
@@ -112,13 +65,11 @@ export function DataTable<TData, TValue>({ columns, data, meta }: Props<TData, T
                     <TableHead
                       key={header.id}
                       className={[
-                        "whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-muted-foreground",
+                        "whitespace-nowrap text-[11px] font-semibold uppercase tracking-wide text-muted-foreground",
                         ui.thClass ?? "",
                       ].join(" ")}
                     >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(header.column.columnDef.header, header.getContext())}
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
                   );
                 })}
@@ -129,16 +80,23 @@ export function DataTable<TData, TValue>({ columns, data, meta }: Props<TData, T
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => {
-                const terminadoStatusId = meta?.terminadoStatusId as string | null | undefined;
-                const rowStatusId = (row.original as any)?.status_id as string | undefined;
-                const isTerminado = Boolean(terminadoStatusId && rowStatusId === terminadoStatusId);
+                // ✅ siempre leer meta desde table.options.meta (más confiable)
+                const tableMeta = table.options.meta as any | undefined;
+                const terminadoStatusId = tableMeta?.terminadoStatusId as string | null | undefined;
+
+                const rowOriginal: any = row.original;
+                const rowStatusId = getRowStatusId(rowOriginal);
+                const rowStatusName = (getRowStatusName(rowOriginal) ?? "").toString().toLowerCase();
+
+                const isTerminado =
+                  Boolean(terminadoStatusId && rowStatusId && rowStatusId === terminadoStatusId) ||
+                  rowStatusName === "terminado";
 
                 return (
                   <TableRow
                     key={row.id}
                     className={[
                       "border-b transition-colors hover:bg-muted/40",
-                      // ✅ fila verde si Terminado
                       isTerminado ? "bg-emerald-50/70 dark:bg-emerald-950/25" : "",
                     ].join(" ")}
                   >
@@ -150,6 +108,8 @@ export function DataTable<TData, TValue>({ columns, data, meta }: Props<TData, T
                           key={cell.id}
                           className={[
                             "align-middle",
+                            // ✅ importante para truncate dentro de celdas fixed
+                            "min-w-0",
                             ui.tdClass ?? "",
                           ].join(" ")}
                         >
@@ -171,20 +131,35 @@ export function DataTable<TData, TValue>({ columns, data, meta }: Props<TData, T
         </Table>
       </div>
 
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-muted-foreground flex-1 text-sm">
-          {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s) selected.
-        </div>
+      {/* Paginación simple */}
+      <div>
 
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
-            Previous
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
-            Next
-          </Button>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-muted-foreground flex-1 text-sm">
+              {table.getFilteredSelectedRowModel().rows.length} of{" "}
+              {table.getFilteredRowModel().rows.length} row(s) selected.
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              Anterior
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
+              Siguiente
+            </Button>
+          </div>
+
         </div>
       </div>
+
     </div>
   );
 }

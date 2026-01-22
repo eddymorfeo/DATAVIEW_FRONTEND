@@ -2,12 +2,15 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown, CheckCircle2, Pencil, Save, Trash2, X } from "lucide-react";
+import { CheckCircle2, Pencil, Save, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 
 import type { Foco } from "@/lib/focos/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+
 import {
   Select,
   SelectContent,
@@ -15,7 +18,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
+
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 function safe(value: string | null | undefined) {
   return value?.trim() ? value : "-";
@@ -31,6 +39,31 @@ function allTrueDraft(draft: EditDraft | null | undefined) {
     draft.informes &&
     draft.procedimientos
   );
+}
+
+function countTrueDraft(draft: EditDraft | null | undefined) {
+  if (!draft) return 0;
+  const values = [
+    draft.ordenInvestigar,
+    draft.instruccionParticular,
+    draft.diligencias,
+    draft.reunionPolicial,
+    draft.informes,
+    draft.procedimientos,
+  ];
+  return values.filter(Boolean).length;
+}
+
+function countTrueFoco(foco: any) {
+  const values = [
+    foco?.orden_investigar,
+    foco?.instruccion_particular,
+    foco?.diligencias,
+    foco?.reunion_policial,
+    foco?.informes,
+    foco?.procedimientos,
+  ];
+  return values.filter(Boolean).length;
 }
 
 export type EditDraft = {
@@ -53,13 +86,11 @@ export type EditDraft = {
 };
 
 export type FocoTableMeta = {
-  // lookups (para selects)
   comunas: { id: string; name: string }[];
   statuses: { id: string; name: string }[];
   analistas: { id: string; full_name: string }[];
   fiscales: { id: string; full_name: string }[];
 
-  // edición
   editingId: string | null;
   draft: EditDraft | null;
 
@@ -69,7 +100,6 @@ export type FocoTableMeta = {
   cancelEdit: () => void;
   patchDraft: (patch: Partial<EditDraft>) => void;
 
-  // confirmaciones (page muestra modal y luego ejecuta)
   requestUpdate: (foco: Foco) => void;
   requestDelete: (foco: Foco) => void;
   requestTerminate: (foco: Foco) => void;
@@ -81,18 +111,17 @@ export const focoColumns: ColumnDef<Foco>[] = [
   {
     accessorKey: "foco_number",
     header: "Foco",
-    meta: { thClass: "w-[60px]", tdClass: "w-[60px]" },
+    meta: { thClass: "w-[70px]", tdClass: "w-[70px]" },
     cell: ({ row, table }) => {
       const meta = table.options.meta as FocoTableMeta | undefined;
       const foco = row.original;
-
       const isEditing = meta?.editingId === foco.id;
 
-      if (!isEditing) return String(foco.foco_number ?? "");
+      if (!isEditing) return String((foco as any).foco_number ?? "");
 
       return (
         <Input
-          className="h-9 w-[50px]"
+          className="h-9 w-full"
           value={meta?.draft?.focoNumber ?? 0}
           inputMode="numeric"
           onChange={(e) => meta?.patchDraft({ focoNumber: Number(e.target.value || 0) })}
@@ -109,11 +138,11 @@ export const focoColumns: ColumnDef<Foco>[] = [
       const foco = row.original;
       const isEditing = meta?.editingId === foco.id;
 
-      if (!isEditing) return String(foco.foco_year ?? "");
+      if (!isEditing) return String((foco as any).foco_year ?? "");
 
       return (
         <Input
-          className="h-9 w-[57px]"
+          className="h-9 w-full"
           value={meta?.draft?.focoYear ?? 0}
           inputMode="numeric"
           onChange={(e) => meta?.patchDraft({ focoYear: Number(e.target.value || 0) })}
@@ -124,21 +153,19 @@ export const focoColumns: ColumnDef<Foco>[] = [
   {
     accessorKey: "title",
     header: "Título",
-    meta: { thClass: "w-[90px]", tdClass: "w-[90px]" },
+    meta: { thClass: "w-[140px]", tdClass: "w-[140px]" },
     cell: ({ row, table }) => {
-      const metaTable = table.options.meta as FocoTableMeta | undefined;
+      const meta = table.options.meta as FocoTableMeta | undefined;
       const foco = row.original;
-      const isEditing = metaTable?.editingId === foco.id;
+      const isEditing = meta?.editingId === foco.id;
 
-      if (!isEditing) {
-        return <span className="block truncate">{safe(foco.title)}</span>;
-      }
+      if (!isEditing) return <span className="block truncate">{safe((foco as any).title)}</span>;
 
       return (
         <Input
-          className="h-9 w-[90px]"
-          value={metaTable?.draft?.title ?? ""}
-          onChange={(e) => metaTable?.patchDraft({ title: e.target.value })}
+          className="h-9 w-full"
+          value={meta?.draft?.title ?? ""}
+          onChange={(e) => meta?.patchDraft({ title: e.target.value })}
         />
       );
     },
@@ -146,11 +173,12 @@ export const focoColumns: ColumnDef<Foco>[] = [
   {
     accessorKey: "description",
     header: "Descripción",
-    meta: { thClass: "w-[130px]", tdClass: "w-[130px]" },
+    // ✅ esta es la primera que escondemos en pantallas pequeñas
+    meta: { thClass: "w-[180px] hidden xl:table-cell", tdClass: "w-[180px] hidden xl:table-cell" },
     cell: ({ row, table }) => {
-      const metaTable = table.options.meta as FocoTableMeta | undefined;
-      const foco = row.original;
-      const isEditing = metaTable?.editingId === foco.id;
+      const meta = table.options.meta as FocoTableMeta | undefined;
+      const foco: any = row.original;
+      const isEditing = meta?.editingId === foco.id;
 
       if (!isEditing) {
         return (
@@ -162,44 +190,28 @@ export const focoColumns: ColumnDef<Foco>[] = [
 
       return (
         <Input
-          className="h-9 w-[90px]"
-          value={metaTable?.draft?.description ?? ""}
-          onChange={(e) => metaTable?.patchDraft({ description: e.target.value })}
+          className="h-9 w-full"
+          value={meta?.draft?.description ?? ""}
+          onChange={(e) => meta?.patchDraft({ description: e.target.value })}
         />
       );
     },
   },
-
-  // ✅ Comuna sortable + editable select
   {
     accessorKey: "comuna_name",
     header: "Comuna",
-    // ({ column }) => (
-    //   <Button
-    //     variant="ghost"
-    //     className="-ml-4"
-    //     onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-    //   >
-    //     Comuna
-    //     <ArrowUpDown className="ml-2 h-4 w-4" />
-    //   </Button>
-    // ),
-    sortingFn: "alphanumeric",
-    meta: { thClass: "w-[130px]", tdClass: "w-[130px] min-w-0" },
+    meta: { thClass: "w-[150px]", tdClass: "w-[150px] min-w-0" },
     cell: ({ row, table }) => {
       const meta = table.options.meta as FocoTableMeta | undefined;
-      const foco = row.original;
+      const foco: any = row.original;
       const isEditing = meta?.editingId === foco.id;
 
-      if (!isEditing) return safe(foco.comuna_name);
+      if (!isEditing) return <span className="block truncate">{safe(foco.comuna_name)}</span>;
 
       return (
-        <Select
-          value={meta?.draft?.comunaId ?? ""}
-          onValueChange={(v) => meta?.patchDraft({ comunaId: v })}
-        >
-          <SelectTrigger className="h-9 w-[90px] min-w-0 overflow-hidden">
-            <SelectValue className="truncate" placeholder="Selecciona comuna" />
+        <Select value={meta?.draft?.comunaId ?? ""} onValueChange={(v) => meta?.patchDraft({ comunaId: v })}>
+          <SelectTrigger className="h-9 w-full min-w-0 overflow-hidden">
+            <SelectValue className="truncate" placeholder="Comuna" />
           </SelectTrigger>
           <SelectContent>
             {(meta?.comunas ?? []).map((c) => (
@@ -212,28 +224,27 @@ export const focoColumns: ColumnDef<Foco>[] = [
       );
     },
   },
-
-  // Estado select
   {
     accessorKey: "status_name",
     header: "Estado",
-    meta: { thClass: "w-[130px]", tdClass: "w-[130px] min-w-0" },
+    meta: { thClass: "w-[150px]", tdClass: "w-[150px] min-w-0" },
     cell: ({ row, table }) => {
       const meta = table.options.meta as FocoTableMeta | undefined;
-      const foco = row.original;
+      const foco: any = row.original;
       const isEditing = meta?.editingId === foco.id;
 
-      if (!isEditing) return safe(foco.status_name);
+      if (!isEditing) {
+        const label = safe(foco.status_name);
+        const lower = (label ?? "").toString().toLowerCase();
+        const variant = lower === "terminado" ? "secondary" : "outline";
+        return <Badge variant={variant} className="truncate max-w-[140px]">{label}</Badge>;
+      }
 
       const terminadoId = meta?.terminadoStatusId ?? null;
       const draftAllTrue = allTrueDraft(meta?.draft);
 
-      const isCurrentlyTerminado = Boolean(terminadoId && foco.status_id === terminadoId);
-      const isDraftTerminado = Boolean(terminadoId && meta?.draft?.statusId === terminadoId);
-
+      const isCurrentlyTerminado = Boolean(terminadoId && (foco.status_id ?? foco.statusId) === terminadoId);
       const blockChangeAwayFromTerminado = isCurrentlyTerminado && draftAllTrue;
-      // ↑ si está Terminado y todos true, no puede salir de Terminado
-      // hasta que baje un subproceso a false.
 
       return (
         <Select
@@ -247,7 +258,6 @@ export const focoColumns: ColumnDef<Foco>[] = [
             const wantsTerminado = v === terminadoId;
             const wantsOther = v !== terminadoId;
 
-            // 1) No dejar seleccionar Terminado si no están todos los subprocesos en true
             if (wantsTerminado && !draftAllTrue) {
               toast.error("No puedes marcar como Terminado", {
                 description: "Debes tener todos los subprocesos en Sí (true) antes de terminar.",
@@ -255,11 +265,9 @@ export const focoColumns: ColumnDef<Foco>[] = [
               return;
             }
 
-            // 2) No dejar salir de Terminado si todos los subprocesos siguen true
             if (wantsOther && blockChangeAwayFromTerminado) {
               toast.error("No puedes cambiar el estado", {
-                description:
-                  "Para salir de 'Terminado', primero debes cambiar al menos un subproceso a No (false).",
+                description: "Para salir de 'Terminado', primero debes cambiar al menos un subproceso a No (false).",
               });
               return;
             }
@@ -267,20 +275,15 @@ export const focoColumns: ColumnDef<Foco>[] = [
             meta?.patchDraft({ statusId: v });
           }}
         >
-          <SelectTrigger className="h-9 w-[90px]">
-            <SelectValue placeholder="Selecciona estado" />
+          <SelectTrigger className="h-9 w-full min-w-0 overflow-hidden">
+            <SelectValue className="truncate" placeholder="Estado" />
           </SelectTrigger>
 
           <SelectContent>
             {(meta?.statuses ?? []).map((s) => {
               const isTerminadoOption = Boolean(terminadoId && s.id === terminadoId);
-
-              // Deshabilitar opción Terminado si no están todos true
               const disableTerminadoOption = isTerminadoOption && !draftAllTrue;
-
-              // Si está Terminado y todos true, deshabilitar cualquier otro estado
               const disableOtherOptions = blockChangeAwayFromTerminado && !isTerminadoOption;
-
               const disabled = disableTerminadoOption || disableOtherOptions;
 
               return (
@@ -294,25 +297,21 @@ export const focoColumns: ColumnDef<Foco>[] = [
       );
     },
   },
-
-  // Analista select
   {
     accessorKey: "analyst_name",
     header: "Analista",
+    meta: { thClass: "w-[160px] hidden lg:table-cell", tdClass: "w-[160px] hidden lg:table-cell min-w-0" },
     cell: ({ row, table }) => {
       const meta = table.options.meta as FocoTableMeta | undefined;
-      const foco = row.original;
+      const foco: any = row.original;
       const isEditing = meta?.editingId === foco.id;
 
-      if (!isEditing) return safe(foco.analyst_name);
+      if (!isEditing) return <span className="block truncate">{safe(foco.analyst_name)}</span>;
 
       return (
-        <Select
-          value={meta?.draft?.analystId ?? ""}
-          onValueChange={(v) => meta?.patchDraft({ analystId: v })}
-        >
-          <SelectTrigger className="h-9 w-[90px]">
-            <SelectValue placeholder="Selecciona analista" />
+        <Select value={meta?.draft?.analystId ?? ""} onValueChange={(v) => meta?.patchDraft({ analystId: v })}>
+          <SelectTrigger className="h-9 w-full min-w-0 overflow-hidden">
+            <SelectValue className="truncate" placeholder="Analista" />
           </SelectTrigger>
           <SelectContent>
             {(meta?.analistas ?? []).map((u) => (
@@ -325,26 +324,21 @@ export const focoColumns: ColumnDef<Foco>[] = [
       );
     },
   },
-
-  // Fiscal select
   {
     accessorKey: "assigned_to_name",
     header: "Fiscal",
-    meta: { thClass: "w-[180px]", tdClass: "w-[180px] min-w-0" },
+    meta: { thClass: "w-[160px] hidden lg:table-cell", tdClass: "w-[160px] hidden lg:table-cell min-w-0" },
     cell: ({ row, table }) => {
       const meta = table.options.meta as FocoTableMeta | undefined;
-      const foco = row.original;
+      const foco: any = row.original;
       const isEditing = meta?.editingId === foco.id;
 
-      if (!isEditing) return safe(foco.assigned_to_name);
+      if (!isEditing) return <span className="block truncate">{safe(foco.assigned_to_name)}</span>;
 
       return (
-        <Select
-          value={meta?.draft?.assignedToId ?? ""}
-          onValueChange={(v) => meta?.patchDraft({ assignedToId: v })}
-        >
-          <SelectTrigger className="h-9 w-[90px]">
-            <SelectValue placeholder="Selecciona fiscal" />
+        <Select value={meta?.draft?.assignedToId ?? ""} onValueChange={(v) => meta?.patchDraft({ assignedToId: v })}>
+          <SelectTrigger className="h-9 w-full min-w-0 overflow-hidden">
+            <SelectValue className="truncate" placeholder="Fiscal" />
           </SelectTrigger>
           <SelectContent>
             {(meta?.fiscales ?? []).map((u) => (
@@ -358,135 +352,74 @@ export const focoColumns: ColumnDef<Foco>[] = [
     },
   },
 
-  // Subprocesos: editables con checkbox
+  // ✅ Nueva columna: Subprocesos (sin 6 columnas)
   {
-    accessorKey: "orden_investigar",
-    header: "Orden Invest.",
-    meta: { thClass: "w-[100px]", tdClass: "w-[100px] min-w-0" },
+    id: "subprocesos",
+    header: "Subprocesos",
+    meta: { thClass: "w-[130px]", tdClass: "w-[130px]" },
     cell: ({ row, table }) => {
       const meta = table.options.meta as FocoTableMeta | undefined;
-      const foco = row.original;
+      const foco: any = row.original;
       const isEditing = meta?.editingId === foco.id;
 
-      if (!isEditing) return foco.orden_investigar ? "Sí" : "No";
+      if (!isEditing) {
+        const done = countTrueFoco(foco);
+        return (
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium tabular-nums">{done}/6</span>
+            <div className="h-2 flex-1 rounded-full bg-muted overflow-hidden">
+              <div className="h-full bg-emerald-500" style={{ width: `${(done / 6) * 100}%` }} />
+            </div>
+          </div>
+        );
+      }
+
+      const done = countTrueDraft(meta?.draft);
 
       return (
-        <div className="flex justify-center">
-          <Checkbox
-            checked={meta?.draft?.ordenInvestigar ?? false}
-            onCheckedChange={(v) => meta?.patchDraft({ ordenInvestigar: Boolean(v) })}
-          />
-        </div>
-      );
-    },
-  },
-  {
-    accessorKey: "instruccion_particular",
-    header: "Instr. Partic",
-    meta: { thClass: "w-[100px]", tdClass: "w-[100px] min-w-0" },
-    cell: ({ row, table }) => {
-      const meta = table.options.meta as FocoTableMeta | undefined;
-      const foco = row.original;
-      const isEditing = meta?.editingId === foco.id;
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="w-full justify-between">
+              <span className="tabular-nums">{done}/6</span>
+              <span className="text-muted-foreground text-xs">Editar</span>
+            </Button>
+          </PopoverTrigger>
 
-      if (!isEditing) return foco.instruccion_particular ? "Sí" : "No";
+          <PopoverContent className="w-72" align="start">
+            <div className="space-y-2">
+              <div className="text-sm font-semibold">Subprocesos</div>
 
-      return (
-        <div className="flex justify-center">
-          <Checkbox
-            checked={meta?.draft?.instruccionParticular ?? false}
-            onCheckedChange={(v) => meta?.patchDraft({ instruccionParticular: Boolean(v) })}
-          />
-        </div>
-      );
-    },
-  },
-  {
-    accessorKey: "diligencias",
-    header: "Diligencias",
-    meta: { thClass: "w-[100px]", tdClass: "w-[100px] min-w-0" },
-    cell: ({ row, table }) => {
-      const meta = table.options.meta as FocoTableMeta | undefined;
-      const foco = row.original;
-      const isEditing = meta?.editingId === foco.id;
+              <div className="grid gap-2">
+                {[
+                  ["Orden Investigar", "ordenInvestigar"] as const,
+                  ["Instr. Particular", "instruccionParticular"] as const,
+                  ["Diligencias", "diligencias"] as const,
+                  ["Reunión Policial", "reunionPolicial"] as const,
+                  ["Informes", "informes"] as const,
+                  ["Procedimientos", "procedimientos"] as const,
+                ].map(([label, key]) => (
+                  <label key={key} className="flex items-center justify-between gap-2 text-sm">
+                    <span className="text-muted-foreground">{label}</span>
+                    <Checkbox
+                      checked={Boolean((meta?.draft as any)?.[key])}
+                      onCheckedChange={(v) => meta?.patchDraft({ [key]: Boolean(v) } as any)}
+                    />
+                  </label>
+                ))}
+              </div>
 
-      if (!isEditing) return foco.diligencias ? "Sí" : "No";
-
-      return (
-        <div className="flex justify-center">
-          <Checkbox
-            checked={meta?.draft?.diligencias ?? false}
-            onCheckedChange={(v) => meta?.patchDraft({ diligencias: Boolean(v) })}
-          />
-        </div>
-      );
-    },
-  },
-  {
-    accessorKey: "reunion_policial",
-    header: "Reu. Policial",
-    meta: { thClass: "w-[100px]", tdClass: "w-[100px] min-w-0" },
-    cell: ({ row, table }) => {
-      const meta = table.options.meta as FocoTableMeta | undefined;
-      const foco = row.original;
-      const isEditing = meta?.editingId === foco.id;
-
-      if (!isEditing) return foco.reunion_policial ? "Sí" : "No";
-
-      return (
-        <div className="flex justify-center">
-          <Checkbox
-            checked={meta?.draft?.reunionPolicial ?? false}
-            onCheckedChange={(v) => meta?.patchDraft({ reunionPolicial: Boolean(v) })}
-          />
-        </div>
-      );
-    },
-  },
-  {
-    accessorKey: "informes",
-    header: "Informes",
-    meta: { thClass: "w-[100px]", tdClass: "w-[100px] min-w-0" },
-    cell: ({ row, table }) => {
-      const meta = table.options.meta as FocoTableMeta | undefined;
-      const foco = row.original;
-      const isEditing = meta?.editingId === foco.id;
-
-      if (!isEditing) return foco.informes ? "Sí" : "No";
-
-      return (
-        <div className="flex justify-center">
-          <Checkbox
-            checked={meta?.draft?.informes ?? false}
-            onCheckedChange={(v) => meta?.patchDraft({ informes: Boolean(v) })}
-          />
-        </div>
-      );
-    },
-  },
-  {
-    accessorKey: "procedimientos",
-    header: "Proced.",
-    meta: { thClass: "w-[100px]", tdClass: "w-[100px] min-w-0" },
-    cell: ({ row, table }) => {
-      const meta = table.options.meta as FocoTableMeta | undefined;
-      const foco = row.original;
-      const isEditing = meta?.editingId === foco.id;
-
-      if (!isEditing) return foco.procedimientos ? "Sí" : "No";
-
-      return (
-        <div className="flex justify-center">
-          <Checkbox
-            checked={meta?.draft?.procedimientos ?? false}
-            onCheckedChange={(v) => meta?.patchDraft({ procedimientos: Boolean(v) })}
-          />
-        </div>
+              {!allTrueDraft(meta?.draft) ? (
+                <p className="text-xs text-muted-foreground">
+                  Para marcar <b>Terminado</b>, debes tener los 6 subprocesos en Sí.
+                </p>
+              ) : null}
+            </div>
+          </PopoverContent>
+        </Popover>
       );
     },
   },
 
-  // ✅ Columna Acciones
   {
     id: "acciones",
     header: "Acciones",
@@ -495,12 +428,11 @@ export const focoColumns: ColumnDef<Foco>[] = [
     cell: ({ row, table }) => {
       const meta = table.options.meta as FocoTableMeta | undefined;
       const foco = row.original;
-
       const isEditing = meta?.editingId === foco.id;
 
       if (isEditing) {
         return (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 justify-end">
             <Button
               variant="ghost"
               size="icon"
@@ -508,7 +440,7 @@ export const focoColumns: ColumnDef<Foco>[] = [
               className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
               onClick={() => meta?.requestUpdate(foco)}
             >
-              <Save className="h-4 w-2" />
+              <Save className="h-4 w-4" />
             </Button>
 
             <Button
@@ -518,7 +450,7 @@ export const focoColumns: ColumnDef<Foco>[] = [
               className="text-muted-foreground hover:bg-muted/60"
               onClick={() => meta?.cancelEdit()}
             >
-              <X className="h-4 w-2" />
+              <X className="h-4 w-4" />
             </Button>
           </div>
         );
@@ -527,7 +459,7 @@ export const focoColumns: ColumnDef<Foco>[] = [
       const terminateDisabled = meta ? !meta.canTerminate(foco) : true;
 
       return (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 justify-end">
           <Button
             variant="ghost"
             size="icon"
@@ -535,7 +467,7 @@ export const focoColumns: ColumnDef<Foco>[] = [
             className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30"
             onClick={() => meta?.startEdit(foco)}
           >
-            <Pencil className="h-4 w-2" />
+            <Pencil className="h-4 w-4" />
           </Button>
 
           <Button
@@ -545,7 +477,7 @@ export const focoColumns: ColumnDef<Foco>[] = [
             className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
             onClick={() => meta?.requestDelete(foco)}
           >
-            <Trash2 className="h-4 w-2" />
+            <Trash2 className="h-4 w-4" />
           </Button>
 
           <Button
@@ -556,11 +488,10 @@ export const focoColumns: ColumnDef<Foco>[] = [
             className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 disabled:opacity-40 dark:hover:bg-emerald-950/30"
             onClick={() => meta?.requestTerminate(foco)}
           >
-            <CheckCircle2 className="h-4 w-2" />
+            <CheckCircle2 className="h-4 w-4" />
           </Button>
         </div>
       );
     },
   },
-
 ];

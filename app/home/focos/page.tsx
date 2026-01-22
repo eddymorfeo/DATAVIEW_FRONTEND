@@ -6,19 +6,12 @@ import { toast } from "sonner";
 import { AddFocos } from "@/components/principal/focos/add-focos";
 import { Header } from "@/components/principal/focos/header";
 import { DataTable } from "@/components/principal/focos/table/data-table";
-import {
-  focoColumns,
-  type EditDraft,
-  type FocoTableMeta,
-} from "@/components/principal/focos/table/columns";
+import { SummaryRankingCards } from "@/components/principal/focos/chart/summary-ranking-cards";
+
+import { focoColumns, type EditDraft, type FocoTableMeta } from "@/components/principal/focos/table/columns";
 
 import type { Foco } from "@/lib/focos/types";
-import {
-  fetchFocos,
-  focoToPayload,
-  updateFoco,
-  deleteFoco,
-} from "@/lib/focos/focos-service";
+import { fetchFocos, focoToPayload, updateFoco, deleteFoco } from "@/lib/focos/focos-service";
 
 import {
   fetchAnalistas,
@@ -41,7 +34,19 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-function allTrue(foco: Foco) {
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+function allTrue(foco: any) {
   return (
     foco.orden_investigar &&
     foco.instruccion_particular &&
@@ -49,18 +54,6 @@ function allTrue(foco: Foco) {
     foco.reunion_policial &&
     foco.informes &&
     foco.procedimientos
-  );
-}
-
-function allTrueDraft(draft: EditDraft | null) {
-  if (!draft) return false;
-  return (
-    draft.ordenInvestigar &&
-    draft.instruccionParticular &&
-    draft.diligencias &&
-    draft.reunionPolicial &&
-    draft.informes &&
-    draft.procedimientos
   );
 }
 
@@ -72,7 +65,6 @@ export default function Focos() {
   const [statuses, setStatuses] = useState<FocoStatusItem[]>([]);
   const [analistas, setAnalistas] = useState<UserItem[]>([]);
   const [fiscales, setFiscales] = useState<UserItem[]>([]);
-  const [loadingLookups, setLoadingLookups] = useState(true);
 
   // edición inline
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -85,6 +77,13 @@ export default function Focos() {
 
   const [pendingFoco, setPendingFoco] = useState<Foco | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // ✅ filtros
+  const [filterTitle, setFilterTitle] = useState("");
+  const [filterComunaId, setFilterComunaId] = useState<string>("all");
+  const [filterStatusId, setFilterStatusId] = useState<string>("all");
+  const [filterAnalistaId, setFilterAnalistaId] = useState<string>("all");
+  const [filterFiscalId, setFilterFiscalId] = useState<string>("all");
 
   // ====== Cargar focos ======
   useEffect(() => {
@@ -104,15 +103,12 @@ export default function Focos() {
   useEffect(() => {
     (async () => {
       try {
-        setLoadingLookups(true);
-
-        const [comunasRes, statusRes, analistasRes, fiscalesRes] =
-          await Promise.all([
-            fetchComunas(),
-            fetchFocoStatuses(),
-            fetchAnalistas(),
-            fetchFiscales(),
-          ]);
+        const [comunasRes, statusRes, analistasRes, fiscalesRes] = await Promise.all([
+          fetchComunas(),
+          fetchFocoStatuses(),
+          fetchAnalistas(),
+          fetchFiscales(),
+        ]);
 
         setComunas(comunasRes);
         setStatuses(statusRes);
@@ -122,50 +118,45 @@ export default function Focos() {
         toast.error("No se pudieron cargar los lookups", {
           description: e?.message ?? "Error inesperado",
         });
-      } finally {
-        setLoadingLookups(false);
       }
     })();
   }, []);
 
-  // ====== Helpers para mapear nombres ======
-  const comunaMap = useMemo(
-    () => new Map(comunas.map((c) => [c.id, c.name])),
-    [comunas]
-  );
-  const statusMap = useMemo(
-    () => new Map(statuses.map((s) => [s.id, s.name])),
-    [statuses]
-  );
-  const analistaMap = useMemo(
-    () => new Map(analistas.map((u) => [u.id, u.full_name])),
-    [analistas]
-  );
-  const fiscalMap = useMemo(
-    () => new Map(fiscales.map((u) => [u.id, u.full_name])),
-    [fiscales]
-  );
+  // ====== Helpers nombres ======
+  const comunaMap = useMemo(() => new Map(comunas.map((c) => [c.id, c.name])), [comunas]);
+  const statusMap = useMemo(() => new Map(statuses.map((s) => [s.id, s.name])), [statuses]);
+  const analistaMap = useMemo(() => new Map(analistas.map((u) => [u.id, u.full_name])), [analistas]);
+  const fiscalMap = useMemo(() => new Map(fiscales.map((u) => [u.id, u.full_name])), [fiscales]);
 
-  function applyNames(foco: Foco): Foco {
+  function applyNames(foco: any): any {
     return {
       ...foco,
-      comuna_name: foco.comuna_id
-        ? comunaMap.get(foco.comuna_id) ?? foco.comuna_name ?? null
-        : foco.comuna_name ?? null,
-      status_name: foco.status_id
-        ? statusMap.get(foco.status_id) ?? foco.status_name ?? null
-        : foco.status_name ?? null,
-      analyst_name: foco.analyst_id
-        ? analistaMap.get(foco.analyst_id) ?? foco.analyst_name ?? null
-        : foco.analyst_name ?? null,
-      assigned_to_name: foco.assigned_to_id
-        ? fiscalMap.get(foco.assigned_to_id) ?? foco.assigned_to_name ?? null
-        : foco.assigned_to_name ?? null,
+      comuna_name: foco.comuna_id ? comunaMap.get(foco.comuna_id) ?? foco.comuna_name ?? null : foco.comuna_name ?? null,
+      status_name: foco.status_id ? statusMap.get(foco.status_id) ?? foco.status_name ?? null : foco.status_name ?? null,
+      analyst_name: foco.analyst_id ? analistaMap.get(foco.analyst_id) ?? foco.analyst_name ?? null : foco.analyst_name ?? null,
+      assigned_to_name: foco.assigned_to_id ? fiscalMap.get(foco.assigned_to_id) ?? foco.assigned_to_name ?? null : foco.assigned_to_name ?? null,
     };
   }
 
+  // ====== terminadoStatusId ======
+  const terminadoStatusId = useMemo(() => {
+    const found = statuses.find((s) => s.name?.toLowerCase() === "terminado");
+    return found?.id ?? null;
+  }, [statuses]);
+
+  function canTerminate(foco: any) {
+    if (!allTrue(foco)) return false;
+    if (!terminadoStatusId) return false;
+    return (foco.status_id ?? foco.statusId) !== terminadoStatusId;
+  }
+
+  function computeIsCompleted(statusId: string) {
+    if (!terminadoStatusId) return false;
+    return statusId === terminadoStatusId;
+  }
+
   // ====== Edición ======
-  function startEdit(foco: Foco) {
+  function startEdit(foco: any) {
     setEditingId(foco.id);
 
     setDraft({
@@ -197,26 +188,6 @@ export default function Focos() {
     setDraft((prev) => (prev ? { ...prev, ...patch } : prev));
   }
 
-  // ====== Reglas Terminar ======
-  const terminadoStatusId = useMemo(() => {
-    const found = statuses.find(
-      (s) => s.name?.toLowerCase() === "terminado"
-    );
-    return found?.id ?? null;
-  }, [statuses]);
-
-  function canTerminate(foco: Foco) {
-    if (!allTrue(foco)) return false;
-    if (!terminadoStatusId) return false;
-    return foco.status_id !== terminadoStatusId;
-  }
-
-  // ✅ Regla central: isCompleted depende del statusId
-  function computeIsCompleted(statusId: string) {
-    if (!terminadoStatusId) return false; // si no existe lookup, evita marcar true por error
-    return statusId === terminadoStatusId;
-  }
-
   // ====== Confirmaciones ======
   function requestUpdate(foco: Foco) {
     setPendingFoco(foco);
@@ -237,40 +208,10 @@ export default function Focos() {
   async function doUpdate() {
     if (!pendingFoco || !draft) return;
 
-    if (terminadoStatusId) {
-      const draftAllTrue = allTrueDraft(draft);
-
-      const isCurrentlyTerminado = pendingFoco.status_id === terminadoStatusId;
-      const wantsTerminado = draft.statusId === terminadoStatusId;
-      const wantsOther = draft.statusId !== terminadoStatusId;
-
-      // No dejar seleccionar Terminado si no están todos true
-      if (wantsTerminado && !draftAllTrue) {
-        toast.error("No puedes marcar como Terminado", {
-          description: "Debes tener todos los subprocesos en Sí (true) antes de terminar.",
-        });
-        setConfirmUpdateOpen(false);
-        setPendingFoco(null);
-        return;
-      }
-
-      // No dejar salir de Terminado si todos siguen true
-      if (isCurrentlyTerminado && wantsOther && draftAllTrue) {
-        toast.error("No puedes cambiar el estado", {
-          description: "Para salir de 'Terminado', primero debes cambiar al menos un subproceso a No (false).",
-        });
-        setConfirmUpdateOpen(false);
-        setPendingFoco(null);
-        return;
-      }
-    }
-
     try {
       setSaving(true);
 
       const base = focoToPayload(pendingFoco);
-
-      // ✅ si cambian a Terminado -> true; si cambian a otro -> false
       const nextIsCompleted = computeIsCompleted(draft.statusId);
 
       const payload = {
@@ -292,15 +233,12 @@ export default function Focos() {
         informes: draft.informes,
         procedimientos: draft.procedimientos,
 
-        // ✅ CLAVE
         isCompleted: nextIsCompleted,
       };
 
-      const updated = await updateFoco(pendingFoco.id, payload);
+      const updated = await updateFoco((pendingFoco as any).id, payload);
 
-      setFocos((prev) =>
-        prev.map((f) => (f.id === updated.id ? applyNames(updated) : f))
-      );
+      setFocos((prev) => prev.map((f: any) => ((f as any).id === (updated as any).id ? applyNames(updated) : f)));
 
       toast.success("Foco actualizado correctamente");
       cancelEdit();
@@ -320,9 +258,9 @@ export default function Focos() {
 
     try {
       setSaving(true);
-      await deleteFoco(pendingFoco.id);
+      await deleteFoco((pendingFoco as any).id);
 
-      setFocos((prev) => prev.filter((f) => f.id !== pendingFoco.id));
+      setFocos((prev) => prev.filter((f: any) => (f as any).id !== (pendingFoco as any).id));
 
       toast.success("Foco eliminado correctamente");
       cancelEdit();
@@ -349,10 +287,9 @@ export default function Focos() {
       return;
     }
 
-    if (!canTerminate(pendingFoco)) {
+    if (!canTerminate(pendingFoco as any)) {
       toast.error("No se puede terminar este foco", {
-        description:
-          "Debe tener todos los subprocesos en Sí y no estar ya Terminado.",
+        description: "Debe tener todos los subprocesos en Sí y no estar ya Terminado.",
       });
       setConfirmTerminateOpen(false);
       setPendingFoco(null);
@@ -365,16 +302,12 @@ export default function Focos() {
       const payload = {
         ...focoToPayload(pendingFoco),
         statusId: terminadoStatusId,
-
-        // ✅ CLAVE: al terminar, marcar completado
         isCompleted: true,
       };
 
-      const updated = await updateFoco(pendingFoco.id, payload);
+      const updated = await updateFoco((pendingFoco as any).id, payload);
 
-      setFocos((prev) =>
-        prev.map((f) => (f.id === updated.id ? applyNames(updated) : f))
-      );
+      setFocos((prev) => prev.map((f: any) => ((f as any).id === (updated as any).id ? applyNames(updated) : f)));
 
       toast.success("Foco marcado como Terminado");
       cancelEdit();
@@ -389,7 +322,32 @@ export default function Focos() {
     }
   }
 
-  // ====== meta para las columnas ======
+  // ====== filtrado (tabla + tarjetas) ======
+  const focosFiltrados = useMemo(() => {
+    const q = filterTitle.trim().toLowerCase();
+
+    return (focos ?? []).filter((f: any) => {
+      const title = (f.title ?? "").toString().toLowerCase();
+      const matchTitle = !q || title.includes(q);
+
+      const matchComuna = filterComunaId === "all" || (f.comuna_id ?? f.comunaId) === filterComunaId;
+      const matchStatus = filterStatusId === "all" || (f.status_id ?? f.statusId) === filterStatusId;
+      const matchAnalista = filterAnalistaId === "all" || (f.analyst_id ?? f.analystId) === filterAnalistaId;
+      const matchFiscal = filterFiscalId === "all" || (f.assigned_to_id ?? f.assignedToId) === filterFiscalId;
+
+      return matchTitle && matchComuna && matchStatus && matchAnalista && matchFiscal;
+    });
+  }, [focos, filterTitle, filterComunaId, filterStatusId, filterAnalistaId, filterFiscalId]);
+
+  function clearFilters() {
+    setFilterTitle("");
+    setFilterComunaId("all");
+    setFilterStatusId("all");
+    setFilterAnalistaId("all");
+    setFilterFiscalId("all");
+  }
+
+  // ====== meta para columnas ======
   const tableMeta: FocoTableMeta = useMemo(
     () => ({
       comunas: comunas.map((c) => ({ id: c.id, name: c.name })),
@@ -416,29 +374,119 @@ export default function Focos() {
   );
 
   return (
-    <div className="text-foreground">
+    <div className="text-foreground space-y-5">
       <Header />
 
-      <AddFocos
-        onCreated={(nuevo) =>
-          setFocos((prev) =>
-            Array.isArray(prev)
-              ? [applyNames(nuevo), ...prev]
-              : [applyNames(nuevo)]
-          )
-        }
-      />
+      <div className="flex items-center justify-end gap-2 space-y-4">
+        <Button>Volver</Button>
 
-      <DataTable columns={focoColumns} data={focos} meta={tableMeta} />
+        {/* Crear */}
+        <AddFocos
+          onCreated={(nuevo: any) =>
+            setFocos((prev) => (Array.isArray(prev) ? [applyNames(nuevo), ...prev] : [applyNames(nuevo)]))
+          }
+        />
+      </div>
+
+      {/* ✅ Barra de filtros (horizontal, sin scroll; si falta espacio hace wrap) */}
+      <div className="rounded-xl border bg-background shadow-sm p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-[220px] flex-1">
+            <Label className="text-xs text-muted-foreground">Título</Label>
+            <Input
+              placeholder="Filtrar por título..."
+              value={filterTitle}
+              onChange={(e) => setFilterTitle(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+
+          <div className="w-[200px]">
+            <Label className="text-xs text-muted-foreground">Comuna</Label>
+            <Select value={filterComunaId} onValueChange={setFilterComunaId}>
+              <SelectTrigger className="mt-1 h-9 w-full min-w-0 overflow-hidden">
+                <SelectValue className="truncate" placeholder="Todas" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {comunas.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="w-[200px]">
+            <Label className="text-xs text-muted-foreground">Estado</Label>
+            <Select value={filterStatusId} onValueChange={setFilterStatusId}>
+              <SelectTrigger className="mt-1 h-9 w-full min-w-0 overflow-hidden">
+                <SelectValue className="truncate" placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {statuses.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="w-[200px]">
+            <Label className="text-xs text-muted-foreground">Analista</Label>
+            <Select value={filterAnalistaId} onValueChange={setFilterAnalistaId}>
+              <SelectTrigger className="mt-1 h-9 w-full min-w-0 overflow-hidden">
+                <SelectValue className="truncate" placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {analistas.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.full_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="w-[200px]">
+            <Label className="text-xs text-muted-foreground">Fiscal</Label>
+            <Select value={filterFiscalId} onValueChange={setFilterFiscalId}>
+              <SelectTrigger className="mt-1 h-9 w-full min-w-0 overflow-hidden">
+                <SelectValue className="truncate" placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {fiscales.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.full_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button variant="secondary" className="h-9" onClick={clearFilters}>
+            Limpiar filtros
+          </Button>
+        </div>
+      </div>
+
+      {/* ✅ Tarjetas ranking (afectadas por filtros) */}
+      <SummaryRankingCards focos={focosFiltrados as any[]} />
+
+      {/* ✅ Tabla (afectada por filtros) */}
+      <DataTable columns={focoColumns} data={focosFiltrados} meta={tableMeta} />
 
       {/* ===== MODAL CONFIRM UPDATE ===== */}
       <AlertDialog open={confirmUpdateOpen} onOpenChange={setConfirmUpdateOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar actualización</AlertDialogTitle>
-            <AlertDialogDescription>
-              ¿Deseas guardar los cambios realizados en este foco?
-            </AlertDialogDescription>
+            <AlertDialogDescription>¿Deseas guardar los cambios realizados en este foco?</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={saving}>Cancelar</AlertDialogCancel>
@@ -454,9 +502,7 @@ export default function Focos() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar eliminación</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción eliminará el foco seleccionado. ¿Deseas continuar?
-            </AlertDialogDescription>
+            <AlertDialogDescription>Esta acción eliminará el foco seleccionado. ¿Deseas continuar?</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={saving}>Cancelar</AlertDialogCancel>
@@ -468,16 +514,12 @@ export default function Focos() {
       </AlertDialog>
 
       {/* ===== MODAL CONFIRM TERMINATE ===== */}
-      <AlertDialog
-        open={confirmTerminateOpen}
-        onOpenChange={setConfirmTerminateOpen}
-      >
+      <AlertDialog open={confirmTerminateOpen} onOpenChange={setConfirmTerminateOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar término</AlertDialogTitle>
             <AlertDialogDescription>
-              Esto cambiará el estado del foco a <b>Terminado</b>. ¿Deseas
-              continuar?
+              Esto cambiará el estado del foco a <b>Terminado</b>. ¿Deseas continuar?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
