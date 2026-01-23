@@ -1,12 +1,11 @@
 "use client";
 
-import { IconSlice, IconTimeline, IconTopologyRing } from "@tabler/icons-react";
+import { Header } from "@/components/principal/procedimientos/header";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import { Header } from "@/components/principal/raf/header";
 
-export default function Raf() {
-  
+export default function Procedimientos() {
+
     const router = useRouter();
 
   return (

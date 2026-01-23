@@ -361,7 +361,7 @@ export default function Focos() {
 
   function clearFilters() {
     setFilterTitle("");
-    setFilterYear("all"); // ✅ NUEVO
+    setFilterYear("all");
     setFilterComunaId("all");
     setFilterStatusId("all");
     setFilterAnalistaId("all");

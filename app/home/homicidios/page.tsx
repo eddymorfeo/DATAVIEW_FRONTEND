@@ -1,10 +1,22 @@
+"use client";
+
+import { Header } from "@/components/principal/Homicidios/header";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+
 export default function Homicidios() {
+
+    const router = useRouter();
+
   return (
     <div className="text-foreground" translate="no">
-      <h1 className="text-2xl font-bold mb-4">Panel de Homicidios</h1>
+      <Header />
 
-      {/* Aquí irá tu UI real */}
-      <p>Contenido del panel de homicidios...</p>
+      <div className="flex items-center justify-end gap-2 space-y-4">
+        <Button variant="outline" onClick={() => router.push("/home")}>
+          Volver
+        </Button>        
+      </div>
     </div>
   );
 }

@@ -4,7 +4,9 @@ import {
   IconReport,
   IconFileWord,
   IconTrendingUp,
-  IconMapPin
+  IconMapPin,
+  IconTimeline,
+  IconTopologyRing
 } from "@tabler/icons-react"
 
 export const sidebarMenu = [
@@ -20,16 +22,22 @@ export const sidebarMenu = [
       url: "/home/homicidios",
       icon: IconMapPin,
     },
+    // {
+    //   name: "Lineas Investigativas",
+    //   description: "Monitorea el avance, estadísticas y gestión de focos delictuales activos y terminados.",
+    //   url: "/home/focos",
+    //   icon: IconTrendingUp,
+    // },
     {
-      name: "Lineas Investigativas",
-      description: "Monitorea el avance, estadísticas y gestión de focos delictuales activos y terminados.",
-      url: "/home/focos",
-      icon: IconTrendingUp,
-    },    
+      name: "Procedimientos",
+      description: "Monitorea el avance, estadísticas y gestión de los procedimientos de los fiscales.",
+      url: "/home/procedimientos",
+      icon: IconTimeline,
+    },
     {
       name: "RAF",
-      description: "Esta es una descripcion de prueba.",
+      description: "Seguimiento y gestión de los Reportes a Fiscalía.",
       url: "/home/raf",
-      icon: IconFileWord,
-    }
+      icon: IconTopologyRing,
+    },
   ]
