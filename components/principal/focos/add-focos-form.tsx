@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,10 +20,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-
 import type { Foco } from "@/lib/focos/types";
 import { createFoco } from "@/lib/focos/focos-service";
-
 import {
   fetchAnalistas,
   fetchComunas,
@@ -35,9 +32,9 @@ import {
 
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 7 }, (_, i) => `${currentYear - 5 + i}`);
+const asStr = (v: unknown) => String(v ?? "");
 
-// ✅ Estado default de creación
-const DEFAULT_STATUS_ID = "917265b4-2688-483b-8c19-c4412e385b0d"; // Vigente
+const DEFAULT_STATUS_ID = "917265b4-2688-483b-8c19-c4412e385b0d";
 
 type Errors = {
   numero?: string;
@@ -64,13 +61,6 @@ function safeJsonParse<T>(value: string | null): T | null {
   }
 }
 
-/**
- * ✅ Ajusta esta función si tu login guarda el usuario en otra key.
- * Intenta:
- * - localStorage.userId / user_id
- * - localStorage.user (objeto con id)
- * - localStorage.accessToken (si el backend mete sub/id en JWT -> requeriría decode)
- */
 function getLoggedUserId(): string | null {
   const direct =
     localStorage.getItem("userId") ||
@@ -88,19 +78,16 @@ function getLoggedUserId(): string | null {
 }
 
 export function AddFocosForm({ onCreated, onCancel }: Props) {
+
   const [numero, setNumero] = useState("");
   const [anio, setAnio] = useState("");
   const [titulo, setTitulo] = useState("");
   const [descripcion, setDescripcion] = useState("");
-
-  // IDs DB
   const [comunaId, setComunaId] = useState("");
   const [analistaId, setAnalistaId] = useState("");
   const [fiscalId, setFiscalId] = useState("");
-
   const [errors, setErrors] = useState<Errors>({});
   const [saving, setSaving] = useState(false);
-
   const [loadingLookups, setLoadingLookups] = useState(true);
   const [comunasDb, setComunasDb] = useState<ComunaItem[]>([]);
   const [analistasDb, setAnalistasDb] = useState<UserItem[]>([]);
@@ -202,7 +189,6 @@ export function AddFocosForm({ onCreated, onCancel }: Props) {
     try {
       setSaving(true);
 
-      // 🔎 Ayuda para debug rápido (mira en DevTools si vuelve el 422)
       const payload = {
         focoNumber: Number(numero),
         focoYear: Number(anio),
@@ -265,7 +251,7 @@ export function AddFocosForm({ onCreated, onCancel }: Props) {
               </SelectTrigger>
               <SelectContent>
                 {years.map((y) => (
-                  <SelectItem key={y} value={y}>
+                  <SelectItem key={y} value={asStr(y)}>
                     {y}
                   </SelectItem>
                 ))}
@@ -308,8 +294,8 @@ export function AddFocosForm({ onCreated, onCancel }: Props) {
                 <SelectValue placeholder={loadingLookups ? "Cargando..." : "Selecciona comuna"} />
               </SelectTrigger>
               <SelectContent>
-                {comunaOptions.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
+                {comunaOptions.map((c) => (                  
+                  <SelectItem key={c.id} value={asStr(c.id)}>
                     {c.name}
                   </SelectItem>
                 ))}
@@ -330,7 +316,7 @@ export function AddFocosForm({ onCreated, onCancel }: Props) {
               </SelectTrigger>
               <SelectContent>
                 {analistaOptions.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>
+                  <SelectItem key={a.id} value={asStr(a.id)}>
                     {a.full_name}
                   </SelectItem>
                 ))}
@@ -352,7 +338,7 @@ export function AddFocosForm({ onCreated, onCancel }: Props) {
             </SelectTrigger>
             <SelectContent>
               {fiscalOptions.map((f) => (
-                <SelectItem key={f.id} value={f.id}>
+                <SelectItem key={f.id} value={asStr(f.id)}>
                   {f.full_name}
                 </SelectItem>
               ))}

@@ -21,7 +21,7 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
       <SidebarInset>
         <SiteHeader />
 
-        <div className="p-6">
+        <div className="notranslate p-6">
           {children}   
         </div>
       </SidebarInset>

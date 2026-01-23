@@ -19,11 +19,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+// ✅ MISMA LÓGICA QUE add-focos-form.tsx
+const currentYear = new Date().getFullYear();
+const years = Array.from({ length: 7 }, (_, i) => `${currentYear - 5 + i}`);
 
 function safe(value: string | null | undefined) {
   return value?.trim() ? value : "-";
@@ -129,27 +129,48 @@ export const focoColumns: ColumnDef<Foco>[] = [
       );
     },
   },
+
+  // ✅ CAMBIO: Año ahora es Select en edición (como create-foco)
   {
     accessorKey: "foco_year",
     header: "Año",
-    meta: { thClass: "w-[70px]", tdClass: "w-[70px]" },
+    meta: { thClass: "w-[90px]", tdClass: "w-[90px]" },
     cell: ({ row, table }) => {
       const meta = table.options.meta as FocoTableMeta | undefined;
-      const foco = row.original;
+      const foco = row.original as any;
       const isEditing = meta?.editingId === foco.id;
 
-      if (!isEditing) return String((foco as any).foco_year ?? "");
+      if (!isEditing) return String(foco.foco_year ?? "");
+
+      const draftYear = meta?.draft?.focoYear;
+      const draftYearStr = draftYear ? String(draftYear) : "";
+
+      // ✅ Si el foco trae un año fuera del rango, lo agregamos para no “romper” el select
+      const yearSet = new Set(years);
+      if (draftYearStr) yearSet.add(draftYearStr);
+      const yearOptions = Array.from(yearSet).sort((a, b) => Number(a) - Number(b));
 
       return (
-        <Input
-          className="h-9 w-full"
-          value={meta?.draft?.focoYear ?? 0}
-          inputMode="numeric"
-          onChange={(e) => meta?.patchDraft({ focoYear: Number(e.target.value || 0) })}
-        />
+        <Select
+          value={draftYearStr}
+          onValueChange={(v) => meta?.patchDraft({ focoYear: Number(v) })}
+        >
+          <SelectTrigger className="h-9 w-full min-w-0 overflow-hidden">
+            <SelectValue className="truncate" placeholder="Año" />
+          </SelectTrigger>
+
+          <SelectContent>
+            {yearOptions.map((y) => (
+              <SelectItem key={y} value={y}>
+                {y}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       );
     },
   },
+
   {
     accessorKey: "title",
     header: "Título",
@@ -170,10 +191,10 @@ export const focoColumns: ColumnDef<Foco>[] = [
       );
     },
   },
+
   {
     accessorKey: "description",
     header: "Descripción",
-    // ✅ esta es la primera que escondemos en pantallas pequeñas
     meta: { thClass: "w-[180px] hidden xl:table-cell", tdClass: "w-[180px] hidden xl:table-cell" },
     cell: ({ row, table }) => {
       const meta = table.options.meta as FocoTableMeta | undefined;
@@ -197,6 +218,7 @@ export const focoColumns: ColumnDef<Foco>[] = [
       );
     },
   },
+
   {
     accessorKey: "comuna_name",
     header: "Comuna",
@@ -224,6 +246,7 @@ export const focoColumns: ColumnDef<Foco>[] = [
       );
     },
   },
+
   {
     accessorKey: "status_name",
     header: "Estado",
@@ -237,7 +260,11 @@ export const focoColumns: ColumnDef<Foco>[] = [
         const label = safe(foco.status_name);
         const lower = (label ?? "").toString().toLowerCase();
         const variant = lower === "terminado" ? "secondary" : "outline";
-        return <Badge variant={variant} className="truncate max-w-[140px]">{label}</Badge>;
+        return (
+          <Badge variant={variant} className="truncate max-w-[140px]">
+            {label}
+          </Badge>
+        );
       }
 
       const terminadoId = meta?.terminadoStatusId ?? null;
@@ -297,6 +324,7 @@ export const focoColumns: ColumnDef<Foco>[] = [
       );
     },
   },
+
   {
     accessorKey: "analyst_name",
     header: "Analista",
@@ -324,6 +352,7 @@ export const focoColumns: ColumnDef<Foco>[] = [
       );
     },
   },
+
   {
     accessorKey: "assigned_to_name",
     header: "Fiscal",
@@ -352,7 +381,6 @@ export const focoColumns: ColumnDef<Foco>[] = [
     },
   },
 
-  // ✅ Nueva columna: Subprocesos (sin 6 columnas)
   {
     id: "subprocesos",
     header: "Subprocesos",

@@ -7,6 +7,7 @@ import { AddFocos } from "@/components/principal/focos/add-focos";
 import { Header } from "@/components/principal/focos/header";
 import { DataTable } from "@/components/principal/focos/table/data-table";
 import { SummaryRankingCards } from "@/components/principal/focos/chart/summary-ranking-cards";
+import { FocosByYearBarChart } from "@/components/principal/focos/chart/focos-by-year-bar-chart";
 
 import { focoColumns, type EditDraft, type FocoTableMeta } from "@/components/principal/focos/table/columns";
 
@@ -38,13 +39,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useRouter } from "next/navigation";
 
 function allTrue(foco: any) {
   return (
@@ -57,7 +53,14 @@ function allTrue(foco: any) {
   );
 }
 
+function getYearValue(f: any): number | null {
+  const raw = f?.foco_year ?? f?.focoYear ?? null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
 export default function Focos() {
+  const router = useRouter();
   const [focos, setFocos] = useState<Foco[]>([]);
 
   // lookups
@@ -80,6 +83,7 @@ export default function Focos() {
 
   // ✅ filtros
   const [filterTitle, setFilterTitle] = useState("");
+  const [filterYear, setFilterYear] = useState<string>("all"); // ✅ NUEVO
   const [filterComunaId, setFilterComunaId] = useState<string>("all");
   const [filterStatusId, setFilterStatusId] = useState<string>("all");
   const [filterAnalistaId, setFilterAnalistaId] = useState<string>("all");
@@ -322,25 +326,42 @@ export default function Focos() {
     }
   }
 
-  // ====== filtrado (tabla + tarjetas) ======
+  // ✅ opciones de años (desde todos los focos)
+  const yearOptions = useMemo(() => {
+    const years = new Set<number>();
+    for (const f of focos ?? []) {
+      const y = getYearValue(f);
+      if (y) years.add(y);
+    }
+    return Array.from(years).sort((a, b) => b - a); // desc
+  }, [focos]);
+
+  // ====== filtrado (tabla + tarjetas + gráfico) ======
   const focosFiltrados = useMemo(() => {
     const q = filterTitle.trim().toLowerCase();
+    const yearFilterNumber = filterYear === "all" ? null : Number(filterYear);
 
     return (focos ?? []).filter((f: any) => {
       const title = (f.title ?? "").toString().toLowerCase();
       const matchTitle = !q || title.includes(q);
+
+      const matchYear =
+        yearFilterNumber === null
+          ? true
+          : Number(f.foco_year ?? f.focoYear ?? 0) === yearFilterNumber;
 
       const matchComuna = filterComunaId === "all" || (f.comuna_id ?? f.comunaId) === filterComunaId;
       const matchStatus = filterStatusId === "all" || (f.status_id ?? f.statusId) === filterStatusId;
       const matchAnalista = filterAnalistaId === "all" || (f.analyst_id ?? f.analystId) === filterAnalistaId;
       const matchFiscal = filterFiscalId === "all" || (f.assigned_to_id ?? f.assignedToId) === filterFiscalId;
 
-      return matchTitle && matchComuna && matchStatus && matchAnalista && matchFiscal;
+      return matchTitle && matchYear && matchComuna && matchStatus && matchAnalista && matchFiscal;
     });
-  }, [focos, filterTitle, filterComunaId, filterStatusId, filterAnalistaId, filterFiscalId]);
+  }, [focos, filterTitle, filterYear, filterComunaId, filterStatusId, filterAnalistaId, filterFiscalId]);
 
   function clearFilters() {
     setFilterTitle("");
+    setFilterYear("all"); // ✅ NUEVO
     setFilterComunaId("all");
     setFilterStatusId("all");
     setFilterAnalistaId("all");
@@ -374,13 +395,14 @@ export default function Focos() {
   );
 
   return (
-    <div className="text-foreground space-y-5">
+    <div className="text-foreground space-y-5" translate="no">
       <Header />
 
       <div className="flex items-center justify-end gap-2 space-y-4">
-        <Button>Volver</Button>
+        <Button variant="outline" onClick={() => router.push("/home")}>
+          Volver
+        </Button>
 
-        {/* Crear */}
         <AddFocos
           onCreated={(nuevo: any) =>
             setFocos((prev) => (Array.isArray(prev) ? [applyNames(nuevo), ...prev] : [applyNames(nuevo)]))
@@ -388,7 +410,7 @@ export default function Focos() {
         />
       </div>
 
-      {/* ✅ Barra de filtros (horizontal, sin scroll; si falta espacio hace wrap) */}
+      {/* ✅ Barra de filtros */}
       <div className="rounded-xl border bg-background shadow-sm p-4">
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-[220px] flex-1">
@@ -399,6 +421,24 @@ export default function Focos() {
               onChange={(e) => setFilterTitle(e.target.value)}
               className="mt-1"
             />
+          </div>
+
+          {/* ✅ NUEVO: Año */}
+          <div className="w-[140px]">
+            <Label className="text-xs text-muted-foreground">Año</Label>
+            <Select value={filterYear} onValueChange={setFilterYear}>
+              <SelectTrigger className="mt-1 h-9 w-full min-w-0 overflow-hidden">
+                <SelectValue className="truncate" placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {yearOptions.map((y) => (
+                  <SelectItem key={y} value={String(y)}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="w-[200px]">
@@ -477,6 +517,9 @@ export default function Focos() {
 
       {/* ✅ Tarjetas ranking (afectadas por filtros) */}
       <SummaryRankingCards focos={focosFiltrados as any[]} />
+
+      {/* ✅ NUEVO: Gráfico barras por año (afectado por filtros) */}
+      <FocosByYearBarChart focos={focosFiltrados as any[]} />
 
       {/* ✅ Tabla (afectada por filtros) */}
       <DataTable columns={focoColumns} data={focosFiltrados} meta={tableMeta} />

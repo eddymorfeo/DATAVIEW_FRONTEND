@@ -9,6 +9,7 @@ type Props = {
 };
 
 export function AddFocos({ onCreated }: Props) {
+  
   const [open, setOpen] = useState(false);
 
   return (
