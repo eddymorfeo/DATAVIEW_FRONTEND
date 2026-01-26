@@ -398,10 +398,19 @@ export default function Focos() {
     <div className="text-foreground space-y-5" translate="no">
       <Header />
 
-      <div className="flex items-center justify-end gap-2 space-y-4">
+      <div className="flex items-center justify-end gap-2 mb-8">
         <Button variant="outline" onClick={() => router.push("/home")}>
           Volver
         </Button>
+      </div>
+
+      {/* ✅ Tarjetas ranking (afectadas por filtros) */}
+      <SummaryRankingCards focos={focosFiltrados as any[]} />
+
+      {/* ✅ NUEVO: Gráfico barras por año (afectado por filtros) */}
+      <FocosByYearBarChart focos={focosFiltrados as any[]} />
+
+      <div className="flex items-center justify-end gap-2 space-y-4">
 
         <AddFocos
           onCreated={(nuevo: any) =>
@@ -514,12 +523,6 @@ export default function Focos() {
           </Button>
         </div>
       </div>
-
-      {/* ✅ Tarjetas ranking (afectadas por filtros) */}
-      <SummaryRankingCards focos={focosFiltrados as any[]} />
-
-      {/* ✅ NUEVO: Gráfico barras por año (afectado por filtros) */}
-      <FocosByYearBarChart focos={focosFiltrados as any[]} />
 
       {/* ✅ Tabla (afectada por filtros) */}
       <DataTable columns={focoColumns} data={focosFiltrados} meta={tableMeta} />

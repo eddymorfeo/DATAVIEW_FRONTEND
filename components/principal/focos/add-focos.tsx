@@ -13,7 +13,7 @@ export function AddFocos({ onCreated }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="space-y-6 pt-4 mb-8">
+    <div className="space-y-6 pt-8">
       <div className="flex justify-end">
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>

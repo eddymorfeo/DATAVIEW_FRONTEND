@@ -71,7 +71,7 @@ export function SummaryRankingCards({ focos }: { focos: any[] }) {
   );
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="grid gap-4 lg:grid-cols-3 mb-8">
       <Ranking title="Focos por Estado" items={byStatus} />
       <Ranking title="Focos por Comuna" items={byComuna} />
       <Ranking title="Focos por Analista" items={byAnalista} />
