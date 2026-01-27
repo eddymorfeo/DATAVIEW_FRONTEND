@@ -130,7 +130,6 @@ export const focoColumns: ColumnDef<Foco>[] = [
     },
   },
 
-  // ✅ CAMBIO: Año ahora es Select en edición (como create-foco)
   {
     accessorKey: "foco_year",
     header: "Año",
@@ -144,8 +143,6 @@ export const focoColumns: ColumnDef<Foco>[] = [
 
       const draftYear = meta?.draft?.focoYear;
       const draftYearStr = draftYear ? String(draftYear) : "";
-
-      // ✅ Si el foco trae un año fuera del rango, lo agregamos para no “romper” el select
       const yearSet = new Set(years);
       if (draftYearStr) yearSet.add(draftYearStr);
       const yearOptions = Array.from(yearSet).sort((a, b) => Number(a) - Number(b));

@@ -1,6 +1,7 @@
 "use client";
 
 import { Header } from "@/components/principal/Homicidios/header";
+import HomicidiosPage from "@/components/principal/homicidios/page";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
@@ -17,6 +18,8 @@ export default function Homicidios() {
           Volver
         </Button>        
       </div>
+
+      <HomicidiosPage />
     </div>
   );
 }

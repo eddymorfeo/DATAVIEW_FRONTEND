@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "leaflet/dist/leaflet.css";
 
 html, body {
   -webkit-translate: none;
@@ -124,3 +125,49 @@ html, body {
     @apply bg-background text-foreground;
   }
 }
+
+/* ===== Leaflet z-index FIX (scoped) =====
+   Usa la clase .dv-leaflet-wrapper en el contenedor del mapa
+   para que NO se coma el z-index de menús/dialogs (shadcn).
+*/
+.dv-leaflet-wrapper {
+  position: relative;
+  isolation: isolate; /* crea stacking context propio */
+  z-index: 0;
+}
+
+/* Normaliza los panes de Leaflet dentro de este scope */
+.dv-leaflet-wrapper .leaflet-pane {
+  z-index: 1 !important;
+}
+
+.dv-leaflet-wrapper .leaflet-tile-pane {
+  z-index: 1 !important;
+}
+
+.dv-leaflet-wrapper .leaflet-overlay-pane {
+  z-index: 2 !important;
+}
+
+.dv-leaflet-wrapper .leaflet-shadow-pane {
+  z-index: 3 !important;
+}
+
+.dv-leaflet-wrapper .leaflet-marker-pane {
+  z-index: 4 !important;
+}
+
+.dv-leaflet-wrapper .leaflet-tooltip-pane {
+  z-index: 5 !important;
+}
+
+.dv-leaflet-wrapper .leaflet-popup-pane {
+  z-index: 6 !important;
+}
+
+/* Controles (+/-) */
+.dv-leaflet-wrapper .leaflet-top,
+.dv-leaflet-wrapper .leaflet-bottom {
+  z-index: 7 !important;
+}
+
